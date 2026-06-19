@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * Optional body for the AI refine endpoint. The instruction is optional: an empty body ({@code {}}) or a
- * missing body is valid, in which case {@code AiService} applies a safe default instruction internally.
+ * missing body is valid, in which case {@code AiActivityService} applies a safe default instruction internally.
  */
 @Data
 @NoArgsConstructor

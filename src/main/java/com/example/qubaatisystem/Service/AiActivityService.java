@@ -16,10 +16,8 @@ import com.example.qubaatisystem.Repository.ActivityRepository;
 import com.example.qubaatisystem.Repository.ActivitySubmissionRepository;
 import com.example.qubaatisystem.Repository.OptionRepository;
 import com.example.qubaatisystem.Repository.QuestionRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -31,7 +29,8 @@ import java.util.regex.Pattern;
 /**
  * AI feature area: activity generation/refinement and submission evaluation/feedback.
  *
- * <p>Uses the OpenAI Chat Completions API (config keys {@code openai.api.key} / {@code openai.model}).
+ * <p>Uses the OpenAI Chat API via Spring AI {@code ChatClient} (config keys {@code spring.ai.openai.api-key}
+ * / {@code spring.ai.openai.chat.options.model}) — the same Spring AI configuration as the mission AiService.
  * If the API key is not configured, every AI text call falls back to a deterministic placeholder so the
  * endpoints remain usable and the project still compiles/runs.
  *
@@ -44,7 +43,6 @@ import java.util.regex.Pattern;
  * OpenAI translation call when a key exists; otherwise the stored English is returned (with a TODO).
  */
 @Service
-@RequiredArgsConstructor
 public class AiActivityService {
 
     private final ActivityRepository activityRepository;
@@ -54,11 +52,25 @@ public class AiActivityService {
     private final ActivitySubmissionService activitySubmissionService;
     private final ActivityService activityService;
 
-    @Value("${openai.api.key:}")
-    private String openAiApiKey;
+    // Spring AI client. The API key and model come from spring.ai.openai.* (OPENAI_API_KEY / OPENAI_MODEL)
+    // via Spring AI auto-configuration — exactly like Student 3's AiService. No manual key/model handling.
+    private final ChatClient chatClient;
 
-    @Value("${openai.model:gpt-5.4-mini}")
-    private String openAiModel;
+    public AiActivityService(ActivityRepository activityRepository,
+                             QuestionRepository questionRepository,
+                             OptionRepository optionRepository,
+                             ActivitySubmissionRepository activitySubmissionRepository,
+                             ActivitySubmissionService activitySubmissionService,
+                             ActivityService activityService,
+                             ChatClient.Builder chatClientBuilder) {
+        this.activityRepository = activityRepository;
+        this.questionRepository = questionRepository;
+        this.optionRepository = optionRepository;
+        this.activitySubmissionRepository = activitySubmissionRepository;
+        this.activitySubmissionService = activitySubmissionService;
+        this.activityService = activityService;
+        this.chatClient = chatClientBuilder.build();
+    }
 
     // ====================== AI ENDPOINTS ======================
 
@@ -313,26 +325,20 @@ public class AiActivityService {
     }
 
     /**
-     * Returns the assistant text from OpenAI, or {@code null} when no API key is configured
-     * (callers then fall back to a deterministic placeholder).
+     * Returns the assistant text from OpenAI, or {@code null} when the call fails (e.g. no API key is
+     * configured), so callers fall back to a deterministic placeholder.
      */
     private String aiText(String systemPrompt, String userPrompt) {
-        if (openAiApiKey == null || openAiApiKey.isBlank()) {
-            return null;
-        }
         return callOpenAi(systemPrompt, userPrompt);
     }
 
     /**
-     * Translates English text to Arabic via OpenAI. Returns {@code null} when no API key is configured
+     * Translates English text to Arabic via OpenAI. Returns {@code null} when the call fails (e.g. no API key)
      * so callers can apply a fallback. Blank input is returned unchanged.
      */
     private String translateToArabic(String englishText) {
         if (englishText == null || englishText.isBlank()) {
             return englishText;
-        }
-        if (openAiApiKey == null || openAiApiKey.isBlank()) {
-            return null;
         }
         return callOpenAi(
                 "You are a professional translator. Translate the value only into Modern Standard Arabic. "
@@ -341,43 +347,21 @@ public class AiActivityService {
                 englishText);
     }
 
+    /**
+     * Single Spring AI {@code ChatClient} call. Returns the assistant text, or {@code null} if the call fails
+     * (no/invalid key, network error, etc.) so callers apply their deterministic fallback. The API key and
+     * model are supplied by Spring AI config (spring.ai.openai.*); they are never read manually here.
+     */
     private String callOpenAi(String systemPrompt, String userPrompt) {
-        Map<String, Object> body = Map.of(
-                "model", openAiModel,
-                "messages", List.of(
-                        Map.of("role", "system", "content", systemPrompt),
-                        Map.of("role", "user", "content", userPrompt)
-                )
-        );
         try {
-            Map<?, ?> response = RestClient.create()
-                    .post()
-                    .uri("https://api.openai.com/v1/chat/completions")
-                    .header("Authorization", "Bearer " + openAiApiKey)
-                    .header("Content-Type", "application/json")
-                    .body(body)
-                    .retrieve()
-                    .body(Map.class);
-            if (response == null) {
-                throw new ApiException("OpenAI returned an empty response");
-            }
-            Object choicesObj = response.get("choices");
-            if (!(choicesObj instanceof List<?> choices) || choices.isEmpty()) {
-                throw new ApiException("OpenAI returned no choices");
-            }
-            Object firstObj = choices.get(0);
-            if (!(firstObj instanceof Map<?, ?> first)) {
-                throw new ApiException("OpenAI response format was unexpected");
-            }
-            Object messageObj = first.get("message");
-            if (!(messageObj instanceof Map<?, ?> message)) {
-                throw new ApiException("OpenAI response format was unexpected");
-            }
-            return String.valueOf(message.get("content"));
-        } catch (ApiException e) {
-            throw e;
+            return chatClient
+                    .prompt()
+                    .system(systemPrompt)
+                    .user(userPrompt)
+                    .call()
+                    .content();
         } catch (Exception e) {
-            throw new ApiException("OpenAI request failed: " + e.getMessage());
+            return null;
         }
     }
 

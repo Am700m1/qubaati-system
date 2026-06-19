@@ -20,13 +20,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AiController {
 
-    private final AiActivityService AiActivityService;
+    private final AiActivityService aiActivityService;
 
     @PostMapping("/activities/generate")
     public ResponseEntity<ActivityDetailsOutDTO> generateActivity(
             @Valid @RequestBody AiGenerateActivityInDTO dto,
             @RequestParam(defaultValue = "en") String language) {
-        return ResponseEntity.status(200).body(AiActivityService.generateActivity(dto, language));
+        return ResponseEntity.status(200).body(aiActivityService.generateActivity(dto, language));
     }
 
     @PostMapping("/activities/{activityId}/refine")
@@ -34,16 +34,16 @@ public class AiController {
             @PathVariable Integer activityId,
             @Valid @RequestBody(required = false) AiRefineActivityInDTO request,
             @RequestParam(defaultValue = "en") String language) {
-        // Instruction is optional: empty body ({}) or no body at all is valid; AiService applies a default.
+        // Instruction is optional: empty body ({}) or no body at all is valid; AiActivityService applies a default.
         String instruction = request == null ? null : request.getInstruction();
-        return ResponseEntity.status(200).body(AiActivityService.refineActivity(activityId, instruction, language));
+        return ResponseEntity.status(200).body(aiActivityService.refineActivity(activityId, instruction, language));
     }
 
     @PostMapping("/activity-submissions/{submissionId}/evaluate")
     public ResponseEntity<ActivitySubmissionOutDTO> evaluateSubmission(
             @PathVariable Integer submissionId,
             @RequestParam(defaultValue = "en") String language) {
-        return ResponseEntity.status(200).body(AiActivityService.evaluateSubmission(submissionId, language));
+        return ResponseEntity.status(200).body(aiActivityService.evaluateSubmission(submissionId, language));
     }
 
     @PostMapping("/activity-submissions/{submissionId}/generate-feedback")
@@ -51,6 +51,6 @@ public class AiController {
             @PathVariable Integer submissionId,
             @RequestParam(defaultValue = "student") String audience,
             @RequestParam(defaultValue = "en") String language) {
-        return ResponseEntity.status(200).body(AiActivityService.generateFeedback(submissionId, audience, language));
+        return ResponseEntity.status(200).body(aiActivityService.generateFeedback(submissionId, audience, language));
     }
 }

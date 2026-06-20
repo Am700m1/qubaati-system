@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 /**
  * Input for AI activity generation. Created because the existing {@code ActivityInDTO} is unsuitable:
  * it requires a title and status (both set by the AI flow) and lacks topic / questionCount.
- * (No teacherId field — the Activity entity has no teacher relationship, so it would not fit the model.)
+ * teacherId is optional: when provided, the generated Activity is owned by that teacher (Student 1 ownership).
  */
 @Data
 @NoArgsConstructor
@@ -39,4 +39,7 @@ public class AiGenerateActivityInDTO {
 
     @PositiveOrZero(message = "maxScore must be zero or positive")
     private Integer maxScore;
+
+    // Optional teacher owner of the generated activity (Student 1 ownership).
+    private Integer teacherId;
 }

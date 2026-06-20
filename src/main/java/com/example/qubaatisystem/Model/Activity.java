@@ -60,4 +60,10 @@ public class Activity {
     // Activity has many ActivityReviews (inverse side)
     @OneToMany(mappedBy = "activity", fetch = FetchType.LAZY)
     private Set<ActivityReview> activityReviews;
+
+    // The teacher who authored/owns this activity (Student 1 ownership). Nullable for backward compatibility
+    // with activities created before ownership existed.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_teacher_id")
+    private Teacher createdByTeacher;
 }

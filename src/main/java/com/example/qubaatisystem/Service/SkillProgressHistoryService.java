@@ -3,6 +3,7 @@ package com.example.qubaatisystem.Service;
 import com.example.qubaatisystem.Api.ApiException;
 import com.example.qubaatisystem.DTO.In.SkillProgressHistoryInDTO;
 import com.example.qubaatisystem.DTO.Out.SkillProgressHistoryOutDTO;
+import com.example.qubaatisystem.DTO.Out.SkillUpdateOutDTO;
 import com.example.qubaatisystem.Enum.SkillType;
 import com.example.qubaatisystem.Model.Skill;
 import com.example.qubaatisystem.Model.SkillProgressHistory;
@@ -138,6 +139,49 @@ public class SkillProgressHistoryService {
         history.setSkill(skill);
         history.setStudentSkill(savedStudentSkill);
         skillProgressHistoryRepository.save(history);
+    }
+
+    /**
+     * Records skill progress against a SPECIFIC skill after a mission (mirrors recordAutomaticSkillProgress
+     * but targets the mission's skill instead of the first PROBLEM_SOLVING one). Returns the change for the
+     * completion response, or null if student/skill is null.
+     */
+    public SkillUpdateOutDTO recordMissionSkillProgress(Student student, Skill skill, int score, int maxScore, String missionTitle) {
+        if (student == null || skill == null) {
+            return null;
+        }
+        double percentage = maxScore > 0 ? (double) score / maxScore : 0.0;
+        double newScore = Math.round(percentage * 100.0);
+        int newLevel = computeLevel(newScore);
+
+        StudentSkill studentSkill = studentSkillRepository.findStudentSkillByStudentIdAndSkillId(student.getId(), skill.getId());
+        Double previousScore = null;
+        Integer previousLevel = null;
+        if (studentSkill == null) {
+            studentSkill = new StudentSkill();
+            studentSkill.setStudent(student);
+            studentSkill.setSkill(skill);
+        } else {
+            previousScore = studentSkill.getScore();
+            previousLevel = studentSkill.getLevel();
+        }
+        studentSkill.setScore(newScore);
+        studentSkill.setLevel(newLevel);
+        StudentSkill savedStudentSkill = studentSkillRepository.save(studentSkill);
+
+        SkillProgressHistory history = new SkillProgressHistory();
+        history.setPreviousScore(previousScore);
+        history.setNewScore(newScore);
+        history.setPreviousLevel(previousLevel);
+        history.setNewLevel(newLevel);
+        history.setReason("Updated automatically after completing mission: " + missionTitle);
+        history.setChangedAt(LocalDateTime.now());
+        history.setStudent(student);
+        history.setSkill(skill);
+        history.setStudentSkill(savedStudentSkill);
+        skillProgressHistoryRepository.save(history);
+
+        return new SkillUpdateOutDTO(skill.getName(), previousScore, newScore);
     }
 
     private int computeLevel(double score0to100) {

@@ -2,13 +2,18 @@ package com.example.qubaatisystem.Service;
 
 import com.example.qubaatisystem.Api.ApiException;
 import com.example.qubaatisystem.DTO.In.ActivitySubmissionInDTO;
+import com.example.qubaatisystem.DTO.In.AiAnswerGradeResult;
 import com.example.qubaatisystem.DTO.Out.ActivitySubmissionOutDTO;
+import com.example.qubaatisystem.DTO.Out.ActivitySubmissionTeacherDetailsOutDTO;
 import com.example.qubaatisystem.DTO.Out.StudentActivityAttemptOutDTO;
 import com.example.qubaatisystem.DTO.Out.StudentOptionAttemptOutDTO;
 import com.example.qubaatisystem.DTO.Out.StudentQuestionAttemptOutDTO;
+import com.example.qubaatisystem.DTO.Out.TeacherAnswerRowOutDTO;
 import com.example.qubaatisystem.Enum.ActivityAssignmentStatus;
 import com.example.qubaatisystem.Enum.ActivitySubmissionStatus;
 import com.example.qubaatisystem.Enum.AnswerStatus;
+import com.example.qubaatisystem.Enum.NotificationType;
+import com.example.qubaatisystem.Enum.QuestionType;
 import com.example.qubaatisystem.Model.Activity;
 import com.example.qubaatisystem.Model.ActivityAssignment;
 import com.example.qubaatisystem.Model.ActivitySubmission;
@@ -18,6 +23,7 @@ import com.example.qubaatisystem.Model.Student;
 import com.example.qubaatisystem.Model.StudentAnswer;
 import com.example.qubaatisystem.Model.Teacher;
 import com.example.qubaatisystem.Repository.ActivityAssignmentRepository;
+import com.example.qubaatisystem.Repository.ActivityRepository;
 import com.example.qubaatisystem.Repository.ActivitySubmissionRepository;
 import com.example.qubaatisystem.Repository.OptionRepository;
 import com.example.qubaatisystem.Repository.QuestionRepository;
@@ -41,6 +47,7 @@ public class ActivitySubmissionService {
 
     private final ActivitySubmissionRepository activitySubmissionRepository;
     private final ActivityAssignmentRepository activityAssignmentRepository;
+    private final ActivityRepository activityRepository;
     private final StudentRepository studentRepository;
     private final TeacherRepository teacherRepository;
     private final StudentAnswerRepository studentAnswerRepository;
@@ -48,6 +55,8 @@ public class ActivitySubmissionService {
     private final OptionRepository optionRepository;
     private final SkillProgressHistoryService skillProgressHistoryService;
     private final LearningStyleHistoryService learningStyleHistoryService;
+    private final NotificationService notificationService;
+    private final AiAnswerGradingService aiAnswerGradingService;
     private final ModelMapper modelMapper;
 
     public List<ActivitySubmissionOutDTO> getAll() {
@@ -122,6 +131,11 @@ public class ActivitySubmissionService {
         if (assignment.getStatus() == ActivityAssignmentStatus.CANCELLED
                 || assignment.getStatus() == ActivityAssignmentStatus.EXPIRED) {
             throw new ApiException("Assignment is not available (status: " + assignment.getStatus() + ")");
+        }
+        // Enforce the deadline at START too (not only at submit), so an overdue assignment cannot be opened
+        // even if the expire-overdue automation has not run yet.
+        if (assignment.getDueDate() != null && LocalDateTime.now().isAfter(assignment.getDueDate())) {
+            throw new ApiException("The assignment deadline has passed; it can no longer be started");
         }
 
         Student student = studentRepository.findStudentById(studentId);
@@ -292,18 +306,49 @@ public class ActivitySubmissionService {
         int rawEarned = 0;
         Set<Integer> answeredQuestionIds = new HashSet<>();
         for (StudentAnswer answer : answers) {
-            if (answer.getQuestion() != null) {
-                answeredQuestionIds.add(answer.getQuestion().getId());
+            Question question = answer.getQuestion();
+            if (question != null) {
+                answeredQuestionIds.add(question.getId());
             }
-            boolean correct = isAnswerCorrect(answer);
-            answer.setStatus(correct ? AnswerStatus.CORRECT : AnswerStatus.INCORRECT);
-            int earned = (correct && answer.getQuestion() != null && answer.getQuestion().getPoints() != null)
-                    ? answer.getQuestion().getPoints() : 0;
+            int maxPoints = (question != null && question.getPoints() != null) ? question.getPoints() : 0;
+            int earned;
+
+            if (question != null && isTextAnswerType(question.getType())) {
+                // SHORT_ANSWER / OPEN_ENDED: AI-assisted grading first, deterministic fallback on any failure.
+                AiAnswerGradeResult ai = aiAnswerGradingService.gradeTextAnswer(question, answer, submission);
+                if (ai != null) {
+                    earned = clamp(ai.getEarnedPoints(), 0, maxPoints);
+                    AnswerStatus status = reconcileStatus(ai.getStatus(), earned, maxPoints);
+                    answer.setStatus(status);
+                    if (ai.getFeedback() != null && !ai.getFeedback().isBlank()) {
+                        // Defense-in-depth: never let the model echo the reference answer into student-visible
+                        // feedback (the prompt forbids it, but we also strip it deterministically).
+                        answer.setFeedback(trimTo2000(sanitizeAnswerFeedback(ai.getFeedback(), question)));
+                    }
+                    if (status == AnswerStatus.CORRECT) {
+                        correctCount++;
+                    }
+                } else {
+                    // No AI (no key / failure): fall back to exact/contains match against the reference answer.
+                    boolean correct = isAnswerCorrect(answer);
+                    earned = correct ? maxPoints : 0;
+                    answer.setStatus(correct ? AnswerStatus.CORRECT : AnswerStatus.INCORRECT);
+                    if (correct) {
+                        correctCount++;
+                    }
+                }
+            } else {
+                // MULTIPLE_CHOICE / TRUE_FALSE (and other structured types): deterministic comparison.
+                boolean correct = isAnswerCorrect(answer);
+                earned = correct ? maxPoints : 0;
+                answer.setStatus(correct ? AnswerStatus.CORRECT : AnswerStatus.INCORRECT);
+                if (correct) {
+                    correctCount++;
+                }
+            }
+
             answer.setEarnedPoints(earned);
             rawEarned += earned;
-            if (correct) {
-                correctCount++;
-            }
             studentAnswerRepository.save(answer);
         }
         int answeredQuestions = answeredQuestionIds.size();
@@ -327,6 +372,10 @@ public class ActivitySubmissionService {
         Student student = graded.getStudent();
         skillProgressHistoryService.recordAutomaticSkillProgress(student, finalScore, officialMax, activity.getTitle());
         learningStyleHistoryService.recordAutomaticLearningStyleUpdate(student, activity.getType(), activity.getTitle());
+
+        // Notify the student that their submission was graded.
+        notifyStudent(student, NotificationType.ACTIVITY_GRADED, "Activity graded",
+                "Your activity \"" + activity.getTitle() + "\" was graded. Score: " + finalScore + "/" + officialMax + ".");
 
         ActivitySubmissionOutDTO out = toOut(graded);
         if (arabic) {
@@ -390,7 +439,10 @@ public class ActivitySubmissionService {
             throw new ApiException("Teacher feedback can only be added to a SUBMITTED, GRADED or RETURNED submission");
         }
         submission.setTeacherFeedback(teacherFeedback);
-        return toOut(activitySubmissionRepository.save(submission));
+        ActivitySubmission saved = activitySubmissionRepository.save(submission);
+        notifyStudent(saved.getStudent(), NotificationType.TEACHER_FEEDBACK, "New teacher feedback",
+                "Your teacher added feedback on your activity.");
+        return toOut(saved);
     }
 
     /**
@@ -462,7 +514,9 @@ public class ActivitySubmissionService {
 
         submission.setTeacherFeedback(feedback);
         submission.setStatus(ActivitySubmissionStatus.RETURNED);
-        activitySubmissionRepository.save(submission);
+        ActivitySubmission saved = activitySubmissionRepository.save(submission);
+        notifyStudent(saved.getStudent(), NotificationType.ACTIVITY_RETURNED, "Activity returned",
+                "Your activity was returned for changes. Please review the feedback and try again.");
     }
 
     public StudentActivityAttemptOutDTO reopenSubmission(Integer submissionId) {
@@ -494,6 +548,9 @@ public class ActivitySubmissionService {
             studentAnswerRepository.save(answer);
         }
 
+        notifyStudent(reopened.getStudent(), NotificationType.SUBMISSION_REOPENED, "Submission reopened",
+                "Your submission was reopened. You can edit your answers and submit again.");
+
         // Return the student-safe attempt view (never exposes correctAnswer / isCorrect).
         return buildStudentAttempt(reopened, assignment, activity, reopened.getStudent());
     }
@@ -509,6 +566,124 @@ public class ActivitySubmissionService {
                         && s.getActivityAssignment().getAssignedByTeacher().getId().equals(teacherId))
                 .map(this::toOut)
                 .toList();
+    }
+
+    // ====================== TEACHER GRADING + SUBMISSION LISTS ======================
+
+    /**
+     * Teacher manual grade / score override for ONE answer. Validates the teacher (the assigning teacher when
+     * known), that the submission is past IN_PROGRESS, the allowed status (CORRECT/INCORRECT/PARTIAL), and that
+     * earnedPoints does not exceed the question's points; then recalculates the submission score, marks it
+     * GRADED, and notifies the student. Returns the updated submission (its score may change).
+     */
+    public ActivitySubmissionOutDTO manualGradeAnswer(Integer answerId, Integer teacherId,
+                                                      Integer earnedPoints, AnswerStatus status, String feedback) {
+        StudentAnswer answer = studentAnswerRepository.findStudentAnswerById(answerId);
+        if (answer == null) {
+            throw new ApiException("StudentAnswer with id " + answerId + " not found");
+        }
+        ActivitySubmission submission = answer.getActivitySubmission();
+        if (submission == null) {
+            throw new ApiException("Answer " + answerId + " is not linked to a submission");
+        }
+        Teacher teacher = teacherRepository.findTeacherById(teacherId);
+        if (teacher == null) {
+            throw new ApiException("Teacher with id " + teacherId + " not found");
+        }
+        ActivityAssignment assignment = submission.getActivityAssignment();
+        if (assignment != null && assignment.getAssignedByTeacher() != null
+                && !assignment.getAssignedByTeacher().getId().equals(teacherId)) {
+            throw new ApiException("Only the assigning teacher can grade this submission");
+        }
+        if (status != AnswerStatus.CORRECT && status != AnswerStatus.INCORRECT && status != AnswerStatus.PARTIAL) {
+            throw new ApiException("status must be CORRECT, INCORRECT or PARTIAL");
+        }
+        if (submission.getStatus() != ActivitySubmissionStatus.SUBMITTED
+                && submission.getStatus() != ActivitySubmissionStatus.GRADED
+                && submission.getStatus() != ActivitySubmissionStatus.RETURNED) {
+            throw new ApiException("Manual grading is only allowed on a SUBMITTED, GRADED or RETURNED submission "
+                    + "(current status: " + submission.getStatus() + ")");
+        }
+        if (earnedPoints == null || earnedPoints < 0) {
+            throw new ApiException("earnedPoints must be zero or positive");
+        }
+        Question question = answer.getQuestion();
+        int maxPoints = (question != null && question.getPoints() != null) ? question.getPoints() : 0;
+        if (earnedPoints > maxPoints) {
+            throw new ApiException("earnedPoints (" + earnedPoints
+                    + ") cannot exceed the question's points (" + maxPoints + ")");
+        }
+
+        answer.setEarnedPoints(earnedPoints);
+        answer.setStatus(status);
+        if (feedback != null && !feedback.isBlank()) {
+            answer.setFeedback(trimTo2000(feedback));
+        }
+        studentAnswerRepository.save(answer);
+
+        ActivitySubmission graded = recomputeAndApplyScore(submission);
+        notifyStudent(graded.getStudent(), NotificationType.ACTIVITY_GRADED, "Activity grade updated",
+                "Your teacher updated your activity grade. Score: " + graded.getScore() + ".");
+        return toOut(graded);
+    }
+
+    /** Teacher: all submissions for ONE assignment (summary only — no answers, never correct answers). */
+    public List<ActivitySubmissionOutDTO> getSubmissionsByAssignment(Integer assignmentId) {
+        if (activityAssignmentRepository.findActivityAssignmentById(assignmentId) == null) {
+            throw new ApiException("ActivityAssignment with id " + assignmentId + " not found");
+        }
+        return activitySubmissionRepository.findActivitySubmissionsByActivityAssignmentId(assignmentId)
+                .stream().map(this::toOut).toList();
+    }
+
+    /** Teacher: all submissions for an ACTIVITY across every assignment (summary only — never correct answers). */
+    public List<ActivitySubmissionOutDTO> getSubmissionsByActivity(Integer activityId) {
+        if (activityRepository.findActivityById(activityId) == null) {
+            throw new ApiException("Activity with id " + activityId + " not found");
+        }
+        return activitySubmissionRepository.findActivitySubmissionsByActivityAssignment_Activity_Id(activityId)
+                .stream().map(this::toOut).toList();
+    }
+
+    /**
+     * Teacher: full per-answer detail for a submission, INCLUDING the correct answers. This is a teacher-only
+     * DTO (mirrors {@code /activities/{id}/details}); it must never be returned by a student-facing endpoint.
+     */
+    public ActivitySubmissionTeacherDetailsOutDTO getTeacherSubmissionDetails(Integer submissionId) {
+        ActivitySubmission submission = requireSubmission(submissionId);
+        ActivityAssignment assignment = submission.getActivityAssignment();
+        Activity activity = assignment != null ? assignment.getActivity() : null;
+
+        List<TeacherAnswerRowOutDTO> rows = new ArrayList<>();
+        for (StudentAnswer a : studentAnswerRepository.findStudentAnswersByActivitySubmissionId(submissionId)) {
+            Question q = a.getQuestion();
+            rows.add(new TeacherAnswerRowOutDTO(
+                    a.getId(),
+                    q != null ? q.getId() : null,
+                    q != null ? q.getContent() : null,
+                    q != null ? q.getType() : null,
+                    q != null ? q.getPoints() : null,
+                    a.getAnswerText(),
+                    a.getEarnedPoints(),
+                    a.getStatus(),
+                    a.getFeedback(),
+                    q != null ? q.getCorrectAnswer() : null));
+        }
+
+        return new ActivitySubmissionTeacherDetailsOutDTO(
+                submission.getId(),
+                activity != null ? activity.getId() : null,
+                activity != null ? activity.getTitle() : null,
+                submission.getStudent() != null ? submission.getStudent().getId() : null,
+                submission.getStudent() != null ? submission.getStudent().getFullName() : null,
+                submission.getStatus(),
+                submission.getScore(),
+                activity != null ? activity.getMaxScore() : null,
+                submission.getStartedAt(),
+                submission.getSubmittedAt(),
+                submission.getTeacherFeedback(),
+                submission.getAiFeedback(),
+                rows);
     }
 
     // ====================== helpers ======================
@@ -552,5 +727,96 @@ public class ActivitySubmissionService {
             out.setStudentName(activitySubmission.getStudent().getFullName());
         }
         return out;
+    }
+
+    /**
+     * Recomputes a submission's score from the current earnedPoints of its answers (normalized to the
+     * activity's maxScore, same formula as automatic grading) and marks it GRADED.
+     */
+    private ActivitySubmission recomputeAndApplyScore(ActivitySubmission submission) {
+        ActivityAssignment assignment = submission.getActivityAssignment();
+        Activity activity = assignment != null ? assignment.getActivity() : null;
+        if (activity == null) {
+            throw new ApiException("Submission is not linked to an activity");
+        }
+        int rawMax = 0;
+        for (Question q : questionRepository.findQuestionsByActivityId(activity.getId())) {
+            rawMax += q.getPoints() != null ? q.getPoints() : 0;
+        }
+        int rawEarned = 0;
+        for (StudentAnswer a : studentAnswerRepository.findStudentAnswersByActivitySubmissionId(submission.getId())) {
+            rawEarned += a.getEarnedPoints() != null ? a.getEarnedPoints() : 0;
+        }
+        int officialMax = (activity.getMaxScore() != null && activity.getMaxScore() > 0)
+                ? activity.getMaxScore() : rawMax;
+        int finalScore = (rawMax > 0 && officialMax > 0)
+                ? Math.round((float) rawEarned * officialMax / rawMax) : rawEarned;
+        submission.setScore(finalScore);
+        submission.setStatus(ActivitySubmissionStatus.GRADED);
+        return activitySubmissionRepository.save(submission);
+    }
+
+    /** Sends a notification to the student's linked user; safely skips when the student has no linked user. */
+    private void notifyStudent(Student student, NotificationType type, String title, String message) {
+        if (student == null || student.getUser() == null) {
+            return;
+        }
+        notificationService.notify(student.getUser(), type, title, message);
+    }
+
+    private boolean isTextAnswerType(QuestionType type) {
+        return type == QuestionType.SHORT_ANSWER || type == QuestionType.OPEN_ENDED;
+    }
+
+    private int clamp(Integer value, int min, int max) {
+        int v = value != null ? value : 0;
+        return Math.max(min, Math.min(max, v));
+    }
+
+    /** Reconciles the AI's status string with the clamped points so status and earnedPoints never disagree. */
+    private AnswerStatus reconcileStatus(String aiStatus, int earned, int maxPoints) {
+        if (aiStatus != null) {
+            String s = aiStatus.trim().toUpperCase();
+            if (s.equals("CORRECT") && maxPoints > 0 && earned >= maxPoints) {
+                return AnswerStatus.CORRECT;
+            }
+            if (s.equals("INCORRECT") && earned <= 0) {
+                return AnswerStatus.INCORRECT;
+            }
+            if (s.equals("PARTIAL") && earned > 0 && earned < maxPoints) {
+                return AnswerStatus.PARTIAL;
+            }
+        }
+        if (maxPoints > 0 && earned >= maxPoints) {
+            return AnswerStatus.CORRECT;
+        }
+        if (earned <= 0) {
+            return AnswerStatus.INCORRECT;
+        }
+        return AnswerStatus.PARTIAL;
+    }
+
+    private String trimTo2000(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.length() > 2000 ? value.substring(0, 2000) : value;
+    }
+
+    /**
+     * Guards against the AI echoing the reference (correct) answer into student-visible per-answer feedback.
+     * If the feedback contains the question's correctAnswer (case-insensitive), it is replaced with a generic
+     * encouraging sentence so no correct answer can leak to the student.
+     */
+    private String sanitizeAnswerFeedback(String feedback, Question question) {
+        if (feedback == null || feedback.isBlank() || question == null) {
+            return feedback;
+        }
+        String ref = question.getCorrectAnswer();
+        if (ref != null && !ref.isBlank()
+                && feedback.toLowerCase().contains(ref.trim().toLowerCase())) {
+            return "Good effort — review your answer and try to make it more complete.";
+        }
+        return feedback;
     }
 }

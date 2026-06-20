@@ -46,22 +46,52 @@ public class ActivityService {
     }
 
     public void create(ActivityInDTO dto) {
-        Activity activity = modelMapper.map(dto, Activity.class);
-
+        // Manual scalar mapping (the DTO now carries a teacherId relation id, so ModelMapper's STANDARD
+        // matching would ambiguously target setId — see modelmapper-relation-id-mapping convention).
+        Activity activity = new Activity();
+        activity.setTitle(dto.getTitle());
+        activity.setDescription(dto.getDescription());
+        activity.setType(dto.getType());
+        activity.setStatus(dto.getStatus());
+        activity.setDifficulty(dto.getDifficulty());
+        activity.setMaxScore(dto.getMaxScore());
+        activity.setCreatedByTeacher(resolveTeacher(dto.getTeacherId()));
         activity.setId(null);
         activityRepository.save(activity);
     }
 
     public void update(Integer id, ActivityInDTO dto) {
-        Activity activity = activityRepository.findActivityById(id);
-        if (activity == null) {
-            throw new ApiException("Activity with id " + id + " not found");
+        Activity activity = requireActivity(id);
+
+        activity.setTitle(dto.getTitle());
+        activity.setDescription(dto.getDescription());
+        activity.setType(dto.getType());
+        activity.setStatus(dto.getStatus());
+        activity.setDifficulty(dto.getDifficulty());
+        activity.setMaxScore(dto.getMaxScore());
+        // Reassign the owner only when a teacherId is supplied; otherwise keep the existing owner.
+        if (dto.getTeacherId() != null) {
+            activity.setCreatedByTeacher(requireTeacher(dto.getTeacherId()));
         }
-
-        modelMapper.map(dto, activity);
         activity.setId(id);
-
         activityRepository.save(activity);
+    }
+
+    /** Optional status filter for the activity list / review queue (null returns all). */
+    public List<ActivityOutDTO> getByStatus(ActivityStatus status) {
+        List<Activity> activities = (status == null)
+                ? activityRepository.findAll()
+                : activityRepository.findActivitiesByStatus(status);
+        return activities.stream().map(this::toOut).toList();
+    }
+
+    /** Teacher-owned activities (Student 1 visibility), optionally filtered by status. */
+    public List<ActivityOutDTO> getActivitiesByTeacher(Integer teacherId, ActivityStatus status) {
+        requireTeacher(teacherId);
+        List<Activity> activities = (status == null)
+                ? activityRepository.findActivitiesByCreatedByTeacherId(teacherId)
+                : activityRepository.findActivitiesByCreatedByTeacherIdAndStatus(teacherId, status);
+        return activities.stream().map(this::toOut).toList();
     }
 
     public void delete(Integer id) {
@@ -167,6 +197,11 @@ public class ActivityService {
         return teacher;
     }
 
+    /** Resolves an optional teacher owner: null id -> no owner; otherwise the teacher must exist. */
+    private Teacher resolveTeacher(Integer teacherId) {
+        return teacherId == null ? null : requireTeacher(teacherId);
+    }
+
     // Review data is stored in ActivityReview (Activity.reviewedAt/reviewComment were removed).
     private void saveReview(Activity activity, Teacher teacher, ActivityReviewDecision decision, String comment) {
         ActivityReview review = new ActivityReview();
@@ -191,7 +226,22 @@ public class ActivityService {
         return out;
     }
 
+    // Manual mapping: Activity now has a createdByTeacher relation; ModelMapper would ambiguously map
+    // createdByTeacher.id and activity.id both onto ActivityOutDTO.id.
     private ActivityOutDTO toOut(Activity activity) {
-        return modelMapper.map(activity, ActivityOutDTO.class);
+        ActivityOutDTO out = new ActivityOutDTO();
+        out.setId(activity.getId());
+        out.setTitle(activity.getTitle());
+        out.setDescription(activity.getDescription());
+        out.setType(activity.getType());
+        out.setStatus(activity.getStatus());
+        out.setDifficulty(activity.getDifficulty());
+        out.setMaxScore(activity.getMaxScore());
+        out.setCreatedAt(activity.getCreatedAt());
+        if (activity.getCreatedByTeacher() != null) {
+            out.setCreatedByTeacherId(activity.getCreatedByTeacher().getId());
+            out.setCreatedByTeacherName(activity.getCreatedByTeacher().getFullName());
+        }
+        return out;
     }
 }

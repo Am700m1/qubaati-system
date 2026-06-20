@@ -34,4 +34,7 @@ public class ActivityInDTO {
 
     @PositiveOrZero(message = "maxScore must be zero or positive")
     private Integer maxScore;
+
+    // Optional teacher owner (Student 1 ownership). Null keeps the activity unowned (backward compatible).
+    private Integer teacherId;
 }

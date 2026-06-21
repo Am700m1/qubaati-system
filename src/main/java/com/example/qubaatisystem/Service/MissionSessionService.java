@@ -78,24 +78,21 @@ public class MissionSessionService {
         return toOut(requireSession(id));
     }
 
+    // Generic mutation of MissionSession is DISABLED: it would let a client create/advance/relabel a session
+    // outside the guarded multi-step flow (start/decision/complete/abandon). Read endpoints stay.
     public void create(MissionSessionInDTO dto) {
-        MissionSession missionSession = modelMapper.map(dto, MissionSession.class);
-        applyRelationships(missionSession, dto);
-        missionSession.setId(null);
-        missionSessionRepository.save(missionSession);
+        throw new ApiException("Direct MissionSession creation is disabled. Start a session via "
+                + "POST /api/v1/missions/{missionId}/sessions/start?studentId=...");
     }
 
     public void update(Integer id, MissionSessionInDTO dto) {
-        MissionSession missionSession = requireSession(id);
-        missionSession.setMission(null);
-        modelMapper.map(dto, missionSession);
-        missionSession.setId(id);
-        applyRelationships(missionSession, dto);
-        missionSessionRepository.save(missionSession);
+        throw new ApiException("Direct MissionSession update is disabled (it would bypass step/score/status logic). "
+                + "Use submit-decision, complete, or abandon.");
     }
 
     public void delete(Integer id) {
-        missionSessionRepository.delete(requireSession(id));
+        throw new ApiException("Direct MissionSession deletion is disabled. Use "
+                + "PATCH /api/v1/mission-sessions/{sessionId}/abandon to end a session.");
     }
 
     // ====================== MISSION SESSION FLOW ======================
@@ -240,6 +237,23 @@ public class MissionSessionService {
         session.setStatus(MissionSessionStatus.COMPLETED);
         session.setEndTime(LocalDateTime.now());
         MissionSession saved = missionSessionRepository.save(session);
+
+        // Mission progress counters (Student.completedMissionsCount + totalPoints). IDEMPOTENT: only a STARTED
+        // session reaches here (it is now COMPLETED), so a repeated complete call fails the status guard above
+        // and never double-counts; abandon/not-ready paths never reach here. Applies to BOTH default and
+        // AI_GENERATED missions. Earned points = the session score (the sum of the chosen choices' scoreImpacts,
+        // accumulated in submitDecision), clamped to [0, mission.maxScore].
+        if (student != null) {
+            int earned = Math.max(0, score);
+            if (mission != null && mission.getMaxScore() != null && mission.getMaxScore() > 0) {
+                earned = Math.min(earned, mission.getMaxScore());
+            }
+            int prevCompleted = student.getCompletedMissionsCount() != null ? student.getCompletedMissionsCount() : 0;
+            int prevPoints = student.getTotalPoints() != null ? student.getTotalPoints() : 0;
+            student.setCompletedMissionsCount(prevCompleted + 1);
+            student.setTotalPoints(prevPoints + earned);
+            studentRepository.save(student);
+        }
 
         // 1-2. Insight: AI-first (Spring AI), deterministic rule-based fallback on any failure.
         Insight insight = buildInsight(saved, mission, student, score);

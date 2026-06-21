@@ -16,23 +16,25 @@ All other variables are **filled automatically** by the test scripts as the requ
 ## 2b. Folder structure & request prefixes (ab / am / ah)
 The collection is organized into numbered folders, grouped by owner. **Folder `01 - Data Injection` seeds all the cross-cutting data** (users/teacher/parent/classroom/students, career world, skill, learning style, a teacher-owned seed activity) and captures every id into collection variables, so the later folders can run against it. Run the folders **top to bottom**.
 
+**Run order rationale — Student 1 is LAST on purpose.** Student-1 dashboards and AI analysis (teacher/parent dashboards, learning profile, AI insights) **aggregate the results of activities and missions**. So the order is: **Data Injection → Student 2 (activities) → Student 3 (missions) → Student 1 (dashboards/analysis) → Optional/debug**. When the Student-1 folder finally runs, the teacher/parent dashboards reflect real submissions, grades, completed missions, insights and recommendations rather than empty data.
+
 Every request name is prefixed to show which student's work it exercises:
 - **`ab -`** = **Student 1** (teacher/parent/classroom management, teacher dashboard + AI insight, teacher-owned activity listing, the activity **review queue / approve / reject / request-revision / review-history / teacher activity-details**, parent dashboard + child overview/learning-profile, AI classroom/family analysis).
 - **`am -`** = **Student 2** (activity create/questions/options, AI activity generation/refine, assignment, submission, student answers, grading, teacher feedback, return/reopen, activity notifications, due-soon/overdue, student activity dashboard).
 - **`ah -`** = **Student 3** (career worlds, skills, missions, mission steps/choices, mission sessions, decisions, insights, recommendations, mission notifications, skill/learning-style setup rows).
 
-Folders:
+Folders (current order):
 1. `01 - Data Injection`
-2. `02 - Student 1 - Teacher Parent Classroom & Dashboard`
-3. `03 - Student 2 - AI Activity Generation`
-4. `04 - Student 2 - Approval & Review Flow`
-5. `05 - Student 2 - Revision & Reject Flow`
-6. `06 - Student 2 - Assignment Flow`
-7. `07 - Student 2 - Submission Flow`
-8. `08 - Student 2 - AI Evaluation & Feedback`
-9. `09 - Student 2 - Teacher Feedback Return Reopen`
-10. `10 - Student 2 - Activity Enhancements`
-11. `11 - Student 3 - Mission Flow`
+2. `02 - Student 2 - AI Activity Generation`
+3. `03 - Student 2 - Approval & Review Flow`
+4. `04 - Student 2 - Revision & Reject Flow`
+5. `05 - Student 2 - Assignment Flow`
+6. `06 - Student 2 - Submission Flow`
+7. `07 - Student 2 - AI Evaluation & Feedback`
+8. `08 - Student 2 - Teacher Feedback Return Reopen`
+9. `09 - Student 2 - Activity Enhancements`
+10. `10 - Student 3 - Mission Flow`
+11. `11 - Student 1 - Teacher Parent Classroom & Dashboard` ← **Student 1 runs last** (dashboards aggregate the data created above)
 12. `12 - Optional / Manual Debug Checks`
 
 **Ownership note:** activities are mostly **Student 2** work — activity creation, questions, options, assignment, submission, grading, feedback, due-soon/overdue and the student activity dashboard are all `am -`. Only the teacher-visibility/review/dashboard side (review queue, approve/reject, teacher-owned activity list, teacher dashboard + AI insight, parent dashboards) is `ab -`. Student 1's changes to the Activity entity were **additive ownership only** (a `createdByTeacher` link); Student 2's assignment/submission/grading flow was **not** rewritten.
@@ -46,16 +48,12 @@ Folders:
 If `OPENAI_API_KEY` is **missing/blank**, the AI endpoints still work using **deterministic placeholder/fallback** content (English canonical storage; for `language=ar` the responses fall back to stored English since live translation needs the key). With a valid key, AI text and Arabic translation are produced by OpenAI. Either way the flow passes.
 
 ## 5. Recommended run order
-Run the folders **top to bottom** (use Postman's **Collection Runner** for the whole collection, or run each folder in order). Order matters because IDs created earlier are reused later:
-1. **Setup / Data Injection** — creates teacher, parent, classroom, 2 students, career world, a **PROBLEM_SOLVING** skill, a **LearningStyle** for the first student, and one seeded skill-history + learning-style-history row.
-2. **AI Activity Generation** — generates the main activity (auto-submitted to **PENDING_REVIEW**) and refines it (Arabic; the **instruction is sent in the request body**, not a query param).
-3. **Approval Flow** — proves a non-APPROVED activity can't be assigned, then review-queue → **approve (teacherId/reviewComment in the body)** → review-history. There is **no public submit-for-review** request: AI generation already placed the activity in the review queue.
-4. **Request Revision / Reject Flow** — second activity → revision; third activity → reject. Both send `teacherId`/`reviewComment` **in the body** (no submit-for-review step, since generation auto-queues).
-5. **Assignment Flow** — assign the now-APPROVED activity, list assignments, extend deadline, bulk-assign the 2nd student.
-6. **Student Submission Flow** — start (returns **student-safe** questions/options) → save one answer (status **SAVED**) → **incomplete submit fails with 400** → save all answers → **submit (auto-evaluates → GRADED with score + activityMaxScore + aiFeedback)** → result.
-7. **AI Evaluation and Feedback (manual / optional)** — `evaluate` and `generate-feedback` are **not** part of the normal flow (submit already grades); kept for manual re-grade / audience-specific feedback. Also has get-feedback, results, pending-grading.
-8. **Teacher Feedback / Return / Reopen Flow** — add teacher-feedback (body, no status change) → return-to-student (**body** → RETURNED) → reopen (→ IN_PROGRESS, clears score/aiFeedback, keeps teacherFeedback, returns the student-safe view) → re-save answers → resubmit (→ GRADED).
-9. **Extra Missing Endpoint Checks** — available career worlds, skill history, learning-style history, and an invalid-language failure check.
+Run the folders **top to bottom** (use Postman's **Collection Runner** for the whole collection, or run each folder in order). The order is **Data Injection → Student 2 → Student 3 → Student 1 → Optional**, because IDs created earlier are reused later and **Student-1 dashboards/analysis only become meaningful after the activity and mission results exist**:
+1. **`01 - Data Injection`** — first stamps a per-run `runSuffix` (idempotency, see §18), then creates teacher, parent, classroom, 2 students, career world, a **PROBLEM_SOLVING** skill, a LearningStyle, seeded skill/learning-style-history rows, and a teacher-owned seed activity (**created PENDING_REVIEW, then approved via the review flow** — generic create can no longer set a status directly); captures every id (incl. `teacherUserId`/`parentUserId`/`studentUserId`).
+2. **`02`–`09` Student 2 — activity flow** — AI activity generation/refine → approval/review (queue → approve/reject/request-revision, history in the body) → assignment (student/classroom/bulk) → submission (start → save → submit → auto-grade) → AI evaluation/feedback (manual/optional) → teacher feedback/return/reopen → **Activity Enhancements** (AI-assisted text grading, manual grading, teacher submission lists, due-soon/overdue, student activity dashboard, activity notifications).
+3. **`10 - Student 3 - Mission Flow`** — seed 4 default multi-step missions → play each (start → decide per step → complete) → unlock 2 personalized missions → play + regenerate a generated mission → insight/recommendations/notifications/skills.
+4. **`11 - Student 1 - Teacher Parent Classroom & Dashboard` (LAST)** — teacher dashboard + AI insight, teacher classrooms/students/owned-activities, activities review-queue filter, parent dashboard + child overview/learning-profile, AI classroom/child/family analyses. Runs **last** so every dashboard reflects the real submissions, grades, completed missions, insights and recommendations produced above.
+5. **`12 - Optional / Manual Debug Checks`** — available career worlds, skill/learning-style history, and an invalid-language failure check.
 
 ## 6. IDs saved automatically
 - `teacherId`, `parentId`, `studentId`, `student2Id` — from the create responses (Teacher/Parent/Student return their full DTO with `id`).
@@ -88,7 +86,7 @@ All errors in this project are returned as HTTP **400** with `{"message": "..."}
 ## 11. API design notes (recent changes)
 - **AI refine instruction is in the body.** `POST /ai/activities/{activityId}/refine?language=ar` with body `{"instruction":"..."}`. The instruction is **optional** — an empty body `{}` or no body at all is valid (a safe default instruction is applied). It is no longer a query parameter.
 - **Review comments are in the body.** `approve`, `reject`, and `request-revision` take `{"teacherId":..,"reviewComment":".."}`. `teacherId` is required; `reviewComment` is optional and defaults to `"Approved"` / `"Rejected"` / `"Revision requested"` respectively.
-- **submit-for-review was removed from the public API.** AI generation now **automatically** sends the new activity to review, so its status is **PENDING_REVIEW** straight after `generate` (not DRAFT). It is still not assignable until **APPROVED**. (`ActivityService.submitForReview(...)` remains an internal helper.)
+- **submit-for-review was removed from the public API.** AI generation now **automatically** sends the new activity to review, so its status is **PENDING_REVIEW** straight after `generate` (not DRAFT). **A manual `POST /activities` is also forced to PENDING_REVIEW** — the client-supplied `status` is accepted by the DTO but **ignored**, and a generic `PUT /activities/{id}` **never changes status** (see §18). It is still not assignable until **APPROVED**. (`ActivityService.submitForReview(...)` remains an internal helper.)
 - **Refine returns the activity to PENDING_REVIEW.** Refine is allowed for DRAFT/REJECTED/PENDING_REVIEW and rejected for APPROVED/ARCHIVED.
 - **Start assignment returns student-safe content.** The response (`StudentActivityAttemptOutDTO`) includes the activity info and each question with its options, but **never** `correctAnswer` nor which option `isCorrect`.
 - **Submission requires all questions answered.** Submitting before answering every question fails with **400** and lists the missing question ids. Submit is only allowed from IN_PROGRESS (a RETURNED submission must be reopened first).
@@ -148,7 +146,7 @@ The personalized **multi-step** mission flow (Student 3). Folder **10. Student 3
 **Postman coverage note:** folder 10 now runs the **complete** flow automatically using the `POST /missions/{missionId}/steps/batch` seeding endpoint (Option A) — no SQL or OpenAI key required. With no key, generated missions use the deterministic 2-step fallback and insight/recommendations use the rule-based fallback, so every assertion still passes. A SQL seed (`postman/sql/student3_mission_flow_seed.sql`, Option B) is **not** needed but could be added for DB-level seeding.
 
 ## 14. Student 2 — Activity enhancements
-Folder **11. Student 2 - Activity Enhancements** runs the whole enhancement set end-to-end. It seeds its own **APPROVED short-answer activity** (activity CRUD accepts `status`, so no AI/review step is needed), assigns it, plays it, and exercises every feature. Reuses `teacherId / studentId / studentUserId / classroomId / parentId` from folder 1. No OpenAI key is required (AI-assisted grading falls back deterministically).
+Folder **09. Student 2 - Activity Enhancements** runs the whole enhancement set end-to-end. It seeds its own short-answer activity by **creating it (PENDING_REVIEW) and then approving it via the review flow** (`PATCH /activities/{id}/approve`) — generic activity CRUD no longer accepts a client `status`, so the explicit approve step is required before assignment — then assigns it, plays it, and exercises every feature. Reuses `teacherId / studentId / studentUserId / classroomId / parentId` from folder 1. No OpenAI key is required (AI-assisted grading falls back deterministically).
 
 **Activity notifications** — every event creates a notification for the student's linked `User` (skipped safely if a student has no user):
 - **Assignment** → `ACTIVITY_ASSIGNED` — to the one student (`/assign/students/{id}`), to **every** classroom student (`/assign/classrooms/{id}`), and to each student in **bulk** assign.
@@ -170,12 +168,12 @@ Folder **11. Student 2 - Activity Enhancements** runs the whole enhancement set 
 **Excluded:** submission history / grading history / audit-log integration were intentionally **not** implemented (not useful in the current project state).
 
 ## 15. Student 1 — Dashboard & analysis coverage
-The Student-1 AI analysis + parent dashboard endpoints (`POST /ai/classrooms/{classroomId}/summary`, `POST /ai/parents/{parentId}/children/{studentId}/summary`, `POST /ai/parents/{parentId}/dashboard-insight`, `GET /parents/{parentId}/dashboard`) live in folder **02 - Student 1 - Teacher Parent Classroom & Dashboard**. They use Spring AI `ChatClient` with a deterministic rule-based fallback, so they return **200** even without an OpenAI key.
+The Student-1 AI analysis + parent dashboard endpoints (`POST /ai/classrooms/{classroomId}/summary`, `POST /ai/parents/{parentId}/children/{studentId}/summary`, `POST /ai/parents/{parentId}/dashboard-insight`, `GET /parents/{parentId}/dashboard`) live in folder **11 - Student 1 - Teacher Parent Classroom & Dashboard** (the second-to-last folder). They use Spring AI `ChatClient` with a deterministic rule-based fallback, so they return **200** even without an OpenAI key.
 
-## 16. Student 1 — Teacher ownership, dashboards & review queue (this change)
-New Student-1 business-flow work, all under folder **02 - Student 1 - …** (`ab -` prefix):
+## 16. Student 1 — Teacher ownership, dashboards & review queue
+New Student-1 business-flow work, all under folder **11 - Student 1 - …** (`ab -` prefix), which now runs **last** so its dashboards aggregate the activity + mission results produced earlier:
 
-**Activity teacher ownership.** `Activity` gained an optional `createdByTeacher` (nullable for legacy rows). `ActivityInDTO` and `AiGenerateActivityInDTO` accept an optional `teacherId`; `ActivityOutDTO` now returns `createdByTeacherId` + `createdByTeacherName`. Folder 1 seeds a teacher-owned APPROVED activity (`POST /activities` with `teacherId`) to prove ownership end-to-end. **No Student-2 flow was changed** — ownership is purely additive.
+**Activity teacher ownership.** `Activity` gained an optional `createdByTeacher` (nullable for legacy rows). `ActivityInDTO` and `AiGenerateActivityInDTO` accept an optional `teacherId`; `ActivityOutDTO` now returns `createdByTeacherId` + `createdByTeacherName`. Folder 1 seeds a teacher-owned activity (`POST /activities` with `teacherId` → PENDING_REVIEW, then `PATCH /activities/{id}/approve` → APPROVED) to prove ownership end-to-end. **No Student-2 flow was changed** — ownership is purely additive.
 
 **Teacher activity listing.** `GET /api/v1/teachers/{teacherId}/activities` (optional `?status=DRAFT|PENDING_REVIEW|APPROVED|REJECTED` — an enum filter, not free text) lists a teacher's own activities.
 
@@ -191,3 +189,27 @@ New Student-1 business-flow work, all under folder **02 - Student 1 - …** (`ab
 1. Start MySQL + the app on `localhost:8080` (`./mvnw spring-boot:run`).
 2. Import the collection; optionally set `OPENAI_API_KEY` for live AI (fallbacks keep every assertion green without it).
 3. Run the whole collection top-to-bottom with the **Collection Runner**, or run folders in order starting with `01 - Data Injection`.
+
+## 18. Guarded flows & idempotency (latest audit fixes)
+This batch closes the remaining "open CRUD can bypass the guarded flow" gaps. None of it adds security/roles — the guards are flow-integrity checks that return the standard **400 `{"message": "..."}`**.
+
+**18.1 Re-runnable seeds (`runSuffix`).** The first request of folder 01, **`ab - Initialize Run Variables`**, stamps `runSuffix = String(Date.now())` into a collection variable in its pre-request script. Every seeded **unique** field then appends `{{runSuffix}}`:
+- teacher / parent / student / second-student **usernames and emails** (the only DB-unique columns: `User.username`, `User.email`).
+- the folder-12 status-guard activity title (`Guard Status Check {{runSuffix}}`).
+
+So the collection can be run repeatedly against a **persistent** MySQL (`ddl-auto=update`) without 400s on the second run. (With the default `ddl-auto=create-drop` the schema is wiped each boot, so this is belt-and-suspenders.) Name-matched id captures (classroom / career world / skill / default missions) were also switched from `.find()` (oldest) to `.filter(...).pop()` (**newest wins**), so a rerun resolves the ids it just created, not a stale earlier row.
+
+**18.2 Generic CRUD on guarded entities is blocked.** The generic `POST/PUT/DELETE` on **`StudentAnswer`**, **`MissionSession`**, and **`Decision`** now throw a 400 that names the official endpoint to use. Safe reads (`GET` list / by id) are kept. Folder 12 asserts the block:
+- `POST /student-answers`, `DELETE /student-answers/{id}` → 400 *(use `POST /activity-submissions/{submissionId}/answers/batch` + submit + `PATCH /student-answers/{answerId}/grade`)*.
+- `POST /mission-sessions` → 400 *(use `POST /missions/{missionId}/sessions/start` → decisions → complete/abandon)*.
+- `POST /decisions` → 400 *(use `POST /mission-sessions/{sessionId}/decisions`)*.
+
+The **official flow endpoints are untouched** — they use the repositories directly, not the generic service `create/update/delete`.
+
+**18.3 Activity status transition rule.** A generic `POST /activities` always lands the activity in **PENDING_REVIEW** (the client `status` is ignored), and a generic `PUT /activities/{id}` **preserves** the existing status. Status only changes through the review flow (`approve` / `reject` / `request-revision`) and AI generation's internal auto-submit. Folder 12 (`am - Create Activity With status=APPROVED (guard test)` → `am - Verify Activity Not APPROVED`) proves a create that *asks* for `APPROVED` ends up `PENDING_REVIEW`.
+
+**18.4 Legacy mission generate obeys the Student-3 rules.** The legacy `POST /api/v1/mission/generate/{studentId}/{worldId}` no longer bypasses personalization rules — it enforces the **same** unlock (4 completed DEFAULT missions per career world) and **2-active-generated cap** as the available/regenerate flow. Folder 10 asserts both:
+- `ah - Legacy Generate Blocked Before Unlock (expect 400)` (before any completion) → 400 with *"locked"*.
+- `ah - Legacy Generate At Cap (expect 400)` (right after unlock, when 2 active generated already exist) → 400 with *"active personalized"*.
+
+**18.5 (Code-only) AI JSON fence stripping.** `OpenAiService.analyze(...)` (Student-1 dashboard analysis) now strips ```` ```json ````/```` ``` ```` fences and narrows to the first `{…}` object before parsing, matching the other AI services; on any failure it still falls back to rule-based analysis. There is no HTTP surface to assert this from Postman — it is verified by code and by the existing dashboard endpoints still returning 200.

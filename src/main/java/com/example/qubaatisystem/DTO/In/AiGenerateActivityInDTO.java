@@ -42,4 +42,8 @@ public class AiGenerateActivityInDTO {
 
     // Optional teacher owner of the generated activity (Student 1 ownership).
     private Integer teacherId;
+
+    // Optional target skill for the generated activity (skillId priority, else skillType). Resolved manually.
+    private Integer skillId;
+    private com.example.qubaatisystem.Enum.SkillType skillType;
 }

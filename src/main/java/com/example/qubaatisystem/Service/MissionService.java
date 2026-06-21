@@ -86,22 +86,67 @@ public class MissionService {
     }
 
     public void create(MissionInDTO dto) {
-        Mission mission = modelMapper.map(dto, Mission.class);
+        // Manual mapping (NOT ModelMapper): MissionInDTO carries relation-ish fields (careerWorldId,
+        // skillType/skillId). ModelMapper would implicitly build a NEW transient Skill from skillType and set
+        // it on Mission.skill (Mission has both skillType and a skill relation), causing Hibernate's
+        // TransientPropertyValueException on flush. We resolve MANAGED CareerWorld + Skill from the DB instead.
         CareerWorld careerWorld = checkCareerWorld(dto.getCareerWorldId());
+        Skill skill = resolveSkill(dto);
+
+        Mission mission = new Mission();
+        mission.setTitle(dto.getTitle());
+        mission.setScenario(dto.getScenario());
+        mission.setSkillType(dto.getSkillType());
+        mission.setDifficulty(dto.getDifficulty());
+        mission.setEstimatedMinutes(dto.getEstimatedMinutes());
+        mission.setMaxScore(dto.getMaxScore());
         mission.setCareerWorld(careerWorld);
+        mission.setSkill(skill);
+        mission.setSource(MissionSource.DEFAULT);
+        mission.setActive(true);
         mission.setId(null);
         missionRepository.save(mission);
     }
 
     public void update(Integer id, MissionInDTO dto) {
+        // Manual mapping (see create()): resolve managed CareerWorld + Skill; never let ModelMapper fabricate a
+        // transient Skill. Generated-mission metadata (source/active/generationSlot/generatedForStudent) is
+        // preserved because it is not touched here.
         Mission oldMission = checkMission(id);
-
-        oldMission.setCareerWorld(null);
-        modelMapper.map(dto, oldMission);
-
         CareerWorld careerWorld = checkCareerWorld(dto.getCareerWorldId());
+        Skill skill = resolveSkill(dto);
+
+        oldMission.setTitle(dto.getTitle());
+        oldMission.setScenario(dto.getScenario());
+        oldMission.setSkillType(dto.getSkillType());
+        oldMission.setDifficulty(dto.getDifficulty());
+        oldMission.setEstimatedMinutes(dto.getEstimatedMinutes());
+        oldMission.setMaxScore(dto.getMaxScore());
         oldMission.setCareerWorld(careerWorld);
+        oldMission.setSkill(skill);
+        oldMission.setId(id);
         missionRepository.save(oldMission);
+    }
+
+    /**
+     * Resolves an EXISTING, managed Skill for a mission. Priority: skillId, then skillType (the first Skill of
+     * that type). Never creates a Skill — mission creation is not a skill-creation endpoint. Throws a clear
+     * ApiException when no matching Skill exists.
+     */
+    private Skill resolveSkill(MissionInDTO dto) {
+        if (dto.getSkillId() != null) {
+            Skill skill = skillRepository.findSkillById(dto.getSkillId());
+            if (skill == null) {
+                throw new ApiException("Skill with id " + dto.getSkillId() + " not found");
+            }
+            return skill;
+        }
+        Skill skill = skillRepository.findFirstSkillBySkillType(dto.getSkillType());
+        if (skill == null) {
+            throw new ApiException("No Skill found for skillType " + dto.getSkillType()
+                    + ". Create the Skill first (POST /api/v1/skills) before adding a mission for it.");
+        }
+        return skill;
     }
 
     public void delete(Integer id) {
@@ -134,17 +179,20 @@ public class MissionService {
         Student student = checkStudent(studentId);
         CareerWorld careerWorld = checkCareerWorld(careerWorldId);
 
-        String aiMissionJson = aiService.generateMissionJson(student, careerWorld);
-        //convert the mission to dto
-        AiMissionDTO aiMissionDTO = parseAiMissionJson(aiMissionJson);
-        //add skill
-        Skill skill = getOrCreateSkill(aiMissionDTO.getSkill());
-        //build
-        Mission mission = buildMissionFromAi(aiMissionDTO, skill, careerWorld, student);
-        markGenerated(mission, 1);
-        missionRepository.save(mission);
-        writeAiContent(mission, aiMissionDTO);
-
+        // Legacy endpoint, now rule-compliant: it must obey the SAME Student-3 personalization rules as the
+        // available/regenerate flow — locked until UNLOCK_THRESHOLD default completions, and never exceeding
+        // MAX_ACTIVE_GENERATED active generated missions per career world. It generates exactly one mission per
+        // call (up to the cap), via the shared rule-aware createGeneratedMission (AI + deterministic fallback).
+        if (countCompletedDefaultMissions(studentId, careerWorldId) < UNLOCK_THRESHOLD) {
+            throw new ApiException("Personalized missions are locked until " + UNLOCK_THRESHOLD
+                    + " default missions are completed in this career world.");
+        }
+        List<Mission> active = activeGeneratedMissions(studentId, careerWorldId);
+        if (active.size() >= MAX_ACTIVE_GENERATED) {
+            throw new ApiException("You already have " + MAX_ACTIVE_GENERATED
+                    + " active personalized missions in this career world; complete one before generating another.");
+        }
+        Mission mission = createGeneratedMission(student, careerWorld, active.size() + 1);
         return toOut(mission);
     }
 
@@ -315,7 +363,8 @@ public class MissionService {
                 choiceOutDTO.setId(missionChoice.getId());
                 choiceOutDTO.setChoiceKey(missionChoice.getChoiceKey());
                 choiceOutDTO.setText(missionChoice.getText());
-                choiceOutDTO.setScoreImpact(missionChoice.getScoreImpact());
+                // scoreImpact deliberately NOT copied — MissionChoiceOutDTO is student-safe (use the admin
+                // steps endpoint GET /missions/{id}/steps for teacher/admin scoreImpact).
 
                 choices.add(choiceOutDTO);
             }

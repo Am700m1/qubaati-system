@@ -119,6 +119,8 @@ public class AiActivityService {
             }
             activity.setCreatedByTeacher(owner);
         }
+        // Optional target skill (reuses ActivityService's resolver: skillId priority, else skillType, else null).
+        activity.setSkill(activityService.resolveActivitySkill(dto.getSkillId(), dto.getSkillType()));
         Activity savedActivity = activityRepository.save(activity);
 
         // Build realistic (non-placeholder) questions/options, stored in canonical English in their own

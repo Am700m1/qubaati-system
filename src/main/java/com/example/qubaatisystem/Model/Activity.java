@@ -66,4 +66,10 @@ public class Activity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_teacher_id")
     private Teacher createdByTeacher;
+
+    // The skill this activity targets — used so grading records progress against the RIGHT skill instead of a
+    // hardcoded default. Nullable; when null the analytics fall back to a PROBLEM_SOLVING skill.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "skill_id")
+    private Skill skill;
 }

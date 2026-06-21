@@ -19,6 +19,7 @@ import com.example.qubaatisystem.Model.ActivityAssignment;
 import com.example.qubaatisystem.Model.ActivitySubmission;
 import com.example.qubaatisystem.Model.Option;
 import com.example.qubaatisystem.Model.Question;
+import com.example.qubaatisystem.Model.Skill;
 import com.example.qubaatisystem.Model.Student;
 import com.example.qubaatisystem.Model.StudentAnswer;
 import com.example.qubaatisystem.Model.Teacher;
@@ -368,10 +369,10 @@ public class ActivitySubmissionService {
         submission.setStatus(ActivitySubmissionStatus.GRADED);
         ActivitySubmission graded = activitySubmissionRepository.save(submission);
 
-        // Automatic, heuristic progress updates after grading (each may skip and document if not applicable).
+        // Finalize: apply the points delta to Student.totalPoints and run the skill/learning-style analytics
+        // against the activity's REAL skill (shared with the manual-grade path; both are duplicate-safe).
+        finalizeGradedSubmission(graded, activity, finalScore, officialMax);
         Student student = graded.getStudent();
-        skillProgressHistoryService.recordAutomaticSkillProgress(student, finalScore, officialMax, activity.getTitle());
-        learningStyleHistoryService.recordAutomaticLearningStyleUpdate(student, activity.getType(), activity.getTitle());
 
         // Notify the student that their submission was graded.
         notifyStudent(student, NotificationType.ACTIVITY_GRADED, "Activity graded",
@@ -515,6 +516,8 @@ public class ActivitySubmissionService {
         submission.setTeacherFeedback(feedback);
         submission.setStatus(ActivitySubmissionStatus.RETURNED);
         ActivitySubmission saved = activitySubmissionRepository.save(submission);
+        // A RETURNED submission is no longer a finalized grade -> remove its previously-counted points.
+        syncStudentPoints(saved, 0);
         notifyStudent(saved.getStudent(), NotificationType.ACTIVITY_RETURNED, "Activity returned",
                 "Your activity was returned for changes. Please review the feedback and try again.");
     }
@@ -541,6 +544,9 @@ public class ActivitySubmissionService {
         submission.setScore(null);
         submission.setAiFeedback(null);
         ActivitySubmission reopened = activitySubmissionRepository.save(submission);
+        // Reopened back to IN_PROGRESS -> no finalized grade, so remove any still-counted points (idempotent;
+        // usually already 0 because returnToStudent removed them).
+        syncStudentPoints(reopened, 0);
 
         for (StudentAnswer answer : studentAnswerRepository.findStudentAnswersByActivitySubmissionId(submissionId)) {
             answer.setEarnedPoints(null);
@@ -598,10 +604,15 @@ public class ActivitySubmissionService {
         if (status != AnswerStatus.CORRECT && status != AnswerStatus.INCORRECT && status != AnswerStatus.PARTIAL) {
             throw new ApiException("status must be CORRECT, INCORRECT or PARTIAL");
         }
+        // A RETURNED submission has been sent back for revision; grading it now would force GRADED and block the
+        // return/reopen/resubmit flow. Reject it — the teacher should reopen (or wait for resubmission) first.
+        if (submission.getStatus() == ActivitySubmissionStatus.RETURNED) {
+            throw new ApiException("Cannot manually grade a RETURNED submission. Reopen it (or wait for "
+                    + "resubmission) and grade after it is submitted again.");
+        }
         if (submission.getStatus() != ActivitySubmissionStatus.SUBMITTED
-                && submission.getStatus() != ActivitySubmissionStatus.GRADED
-                && submission.getStatus() != ActivitySubmissionStatus.RETURNED) {
-            throw new ApiException("Manual grading is only allowed on a SUBMITTED, GRADED or RETURNED submission "
+                && submission.getStatus() != ActivitySubmissionStatus.GRADED) {
+            throw new ApiException("Manual grading is only allowed on a SUBMITTED or GRADED submission "
                     + "(current status: " + submission.getStatus() + ")");
         }
         if (earnedPoints == null || earnedPoints < 0) {
@@ -753,7 +764,11 @@ public class ActivitySubmissionService {
                 ? Math.round((float) rawEarned * officialMax / rawMax) : rawEarned;
         submission.setScore(finalScore);
         submission.setStatus(ActivitySubmissionStatus.GRADED);
-        return activitySubmissionRepository.save(submission);
+        ActivitySubmission graded = activitySubmissionRepository.save(submission);
+        // Same finalize as auto-grade: apply the points delta + run skill/learning-style analytics. Manual
+        // grading now also updates analytics (previously it only recomputed the score).
+        finalizeGradedSubmission(graded, activity, finalScore, officialMax);
+        return graded;
     }
 
     /** Sends a notification to the student's linked user; safely skips when the student has no linked user. */
@@ -818,5 +833,52 @@ public class ActivitySubmissionService {
             return "Good effort — review your answer and try to make it more complete.";
         }
         return feedback;
+    }
+
+    // ====================== completion analytics + points accounting ======================
+
+    /**
+     * Shared finalize step for a submission that just became GRADED (auto or manual): applies the points delta
+     * to the student total and runs the skill/learning-style analytics against the activity's real skill.
+     */
+    private void finalizeGradedSubmission(ActivitySubmission submission, Activity activity, int finalScore, int officialMax) {
+        syncStudentPoints(submission, finalScore);
+        applyActivityCompletionAnalytics(submission, activity, finalScore, officialMax);
+    }
+
+    /**
+     * Delta-accounts a submission's contribution to {@code Student.totalPoints}: applies only the difference vs
+     * what this submission previously contributed (tracked on {@code pointsAppliedToStudentTotal}), so repeated
+     * grading / returning / reopening never double-counts. {@code countedScore} is the score that should count
+     * now (the finalized score for GRADED, 0 for RETURNED/reopened).
+     */
+    private void syncStudentPoints(ActivitySubmission submission, int countedScore) {
+        int prev = submission.getPointsAppliedToStudentTotal() != null ? submission.getPointsAppliedToStudentTotal() : 0;
+        if (prev == countedScore) {
+            return; // nothing to change
+        }
+        Student student = submission.getStudent();
+        if (student != null) {
+            int delta = countedScore - prev;
+            int total = student.getTotalPoints() != null ? student.getTotalPoints() : 0;
+            student.setTotalPoints(Math.max(0, total + delta));
+            studentRepository.save(student);
+        }
+        submission.setPointsAppliedToStudentTotal(countedScore);
+        activitySubmissionRepository.save(submission);
+    }
+
+    /**
+     * Runs the automatic skill + learning-style updates after an activity is graded, using the activity's REAL
+     * skill (or null -> the skill service falls back to a PROBLEM_SOLVING skill). Shared by auto + manual grade.
+     */
+    private void applyActivityCompletionAnalytics(ActivitySubmission submission, Activity activity, int score, int maxScore) {
+        Student student = submission.getStudent();
+        Skill skill = (activity != null) ? activity.getSkill() : null;
+        String title = (activity != null && activity.getTitle() != null) ? activity.getTitle() : "activity";
+        skillProgressHistoryService.recordAutomaticSkillProgress(student, skill, score, maxScore, title);
+        if (activity != null) {
+            learningStyleHistoryService.recordAutomaticLearningStyleUpdate(student, activity.getType(), title);
+        }
     }
 }

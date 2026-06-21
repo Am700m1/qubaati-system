@@ -150,7 +150,19 @@
       "value": ""
     },
     {
+      "key": "studentUserId",
+      "value": ""
+    },
+    {
       "key": "teacherOwnedActivityId",
+      "value": ""
+    },
+    {
+      "key": "s2PointsPreSubmit",
+      "value": ""
+    },
+    {
+      "key": "runSuffix",
       "value": ""
     }
   ],
@@ -158,6 +170,34 @@
     {
       "name": "01 - Data Injection",
       "item": [
+        {
+          "name": "ab - Initialize Run Variables",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/activities"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Idempotency: stamp a per-run suffix so seeded unique fields (usernames, emails) are unique",
+                  "// on every execution. All seed bodies below append {{runSuffix}} to those fields.",
+                  "pm.collectionVariables.set('runSuffix', String(Date.now()));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('runSuffix initialized', () => pm.expect(pm.collectionVariables.get('runSuffix')).to.match(/^[0-9]+$/));"
+                ]
+              }
+            }
+          ]
+        },
         {
           "name": "ab - Create Teacher (Noura Alharbi)",
           "request": {
@@ -170,7 +210,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"username\":\"noura.physics\",\"email\":\"noura.physics@example.com\",\"password\":\"Pass@12345\",\"fullName\":\"Noura Alharbi\",\"specialization\":\"Physics\"}"
+              "raw": "{\"username\":\"noura.physics{{runSuffix}}\",\"email\":\"noura.physics{{runSuffix}}@example.com\",\"password\":\"Pass@12345\",\"fullName\":\"Noura Alharbi\",\"specialization\":\"Physics\"}"
             },
             "url": "{{baseUrl}}/teachers"
           },
@@ -201,7 +241,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"username\":\"sarah.parent\",\"email\":\"sarah.parent@example.com\",\"password\":\"Pass@12345\",\"fullName\":\"Sarah Alqahtani\",\"phoneNumber\":\"0501234567\"}"
+              "raw": "{\"username\":\"sarah.parent{{runSuffix}}\",\"email\":\"sarah.parent{{runSuffix}}@example.com\",\"password\":\"Pass@12345\",\"fullName\":\"Sarah Alqahtani\",\"phoneNumber\":\"0501234567\"}"
             },
             "url": "{{baseUrl}}/parents"
           },
@@ -261,7 +301,7 @@
                 "exec": [
                   "const json = pm.response.json();",
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "const c = Array.isArray(json) ? json.find(x => x.name === 'Grade 6 Physics Explorers') : null;",
+                  "const c = Array.isArray(json) ? json.filter(x => x.name === 'Grade 6 Physics Explorers').pop() : null;",
                   "pm.test('classroom found', () => pm.expect(c, 'classroom').to.not.be.undefined);",
                   "if (c) pm.collectionVariables.set('classroomId', c.id);"
                 ]
@@ -310,7 +350,7 @@
                 "exec": [
                   "const json = pm.response.json();",
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "const cw = Array.isArray(json) ? json.find(x => x.title === 'Engineering World') : null;",
+                  "const cw = Array.isArray(json) ? json.filter(x => x.title === 'Engineering World').pop() : null;",
                   "if (cw) pm.collectionVariables.set('careerWorldId', cw.id);"
                 ]
               }
@@ -358,7 +398,7 @@
                 "exec": [
                   "const json = pm.response.json();",
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "const s = Array.isArray(json) ? json.find(x => x.name === 'Problem Solving') : null;",
+                  "const s = Array.isArray(json) ? json.filter(x => x.name === 'Problem Solving').pop() : null;",
                   "if (s) pm.collectionVariables.set('skillId', s.id);"
                 ]
               }
@@ -377,7 +417,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"username\":\"faisal.student\",\"email\":\"faisal.student@example.com\",\"password\":\"Pass@12345\",\"fullName\":\"Faisal Alqahtani\",\"age\":12,\"grade\":\"Grade 6\",\"parentId\":{{parentId}},\"classroomId\":{{classroomId}}}"
+              "raw": "{\"username\":\"faisal.student{{runSuffix}}\",\"email\":\"faisal.student{{runSuffix}}@example.com\",\"password\":\"Pass@12345\",\"fullName\":\"Faisal Alqahtani\",\"age\":12,\"grade\":\"Grade 6\",\"parentId\":{{parentId}},\"classroomId\":{{classroomId}}}"
             },
             "url": "{{baseUrl}}/students"
           },
@@ -408,7 +448,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"username\":\"lina.student\",\"email\":\"lina.student@example.com\",\"password\":\"Pass@12345\",\"fullName\":\"Lina Alqahtani\",\"age\":12,\"grade\":\"Grade 6\",\"parentId\":{{parentId}},\"classroomId\":{{classroomId}}}"
+              "raw": "{\"username\":\"lina.student{{runSuffix}}\",\"email\":\"lina.student{{runSuffix}}@example.com\",\"password\":\"Pass@12345\",\"fullName\":\"Lina Alqahtani\",\"age\":12,\"grade\":\"Grade 6\",\"parentId\":{{parentId}},\"classroomId\":{{classroomId}}}"
             },
             "url": "{{baseUrl}}/students"
           },
@@ -519,7 +559,7 @@
             "url": "{{baseUrl}}/activities",
             "body": {
               "mode": "raw",
-              "raw": "{\"title\":\"Teacher Owned Seed Activity\",\"description\":\"Owned by the teacher (Student 1 ownership seed).\",\"type\":\"QUIZ\",\"status\":\"APPROVED\",\"difficulty\":\"EASY\",\"maxScore\":10,\"teacherId\":{{teacherId}}}"
+              "raw": "{\"title\":\"Teacher Owned Seed Activity\",\"description\":\"Owned by the teacher (Student 1 ownership seed).\",\"type\":\"QUIZ\",\"status\":\"PENDING_REVIEW\",\"difficulty\":\"EASY\",\"maxScore\":10,\"teacherId\":{{teacherId}},\"skillId\":{{skillId}}}"
             }
           },
           "event": [
@@ -549,180 +589,29 @@
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
                   "const a = Array.isArray(json) ? json.filter(x => x.title === 'Teacher Owned Seed Activity').pop() : null;",
                   "pm.test('teacher-owned activity exists with createdByTeacherId', () => { pm.expect(a).to.not.be.null; pm.expect(a.createdByTeacherId).to.eql(Number(pm.collectionVariables.get('teacherId'))); });",
+                  "// Guard (Issue 3): a manually created activity must NOT be APPROVED directly — it enters the review queue.",
+                  "pm.test('manual create is PENDING_REVIEW (not APPROVED)', () => pm.expect(a.status).to.eql('PENDING_REVIEW'));",
                   "if (a) pm.collectionVariables.set('teacherOwnedActivityId', a.id);"
                 ]
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      "name": "02 - Student 1 - Teacher Parent Classroom & Dashboard",
-      "item": [
-        {
-          "name": "ab - Get Teacher Dashboard",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/teachers/{{teacherId}}/dashboard"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const json = pm.response.json();",
-                  "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('dashboard integrates activity + mission summaries', () => { pm.expect(json).to.have.property('classroomCount'); pm.expect(json).to.have.property('activitySummary'); pm.expect(json).to.have.property('missionSummary'); });"
-                ]
-              }
-            }
-          ]
         },
         {
-          "name": "ab - Teacher AI Dashboard Insight",
+          "name": "ab - Approve Teacher-Owned Activity (review flow)",
           "request": {
-            "method": "POST",
-            "header": [],
-            "url": "{{baseUrl}}/ai/teachers/{{teacherId}}/dashboard-insight"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const json = pm.response.json();",
-                  "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('insight has summary + source (openai or fallback)', () => { pm.expect(json.summary).to.be.a('string').and.not.empty; pm.expect(json.source).to.be.oneOf(['openai','fallback']); });"
-                ]
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
               }
+            ],
+            "url": "{{baseUrl}}/activities/{{teacherOwnedActivityId}}/approve",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"teacherId\":{{teacherId}},\"reviewComment\":\"Seed approval\"}"
             }
-          ]
-        },
-        {
-          "name": "ab - Get Teacher Classrooms",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/teachers/{{teacherId}}/classrooms"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "ab - Get Teacher Students",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/teachers/{{teacherId}}/students"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "ab - Get Teacher Activities (all)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/teachers/{{teacherId}}/activities"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const json = pm.response.json();",
-                  "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('teacher owns at least the seeded activity', () => pm.expect(json).to.be.an('array').that.is.not.empty);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "ab - Get Teacher Activities (APPROVED filter)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/teachers/{{teacherId}}/activities?status=APPROVED"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const json = pm.response.json();",
-                  "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('all returned are APPROVED', () => json.forEach(a => pm.expect(a.status).to.eql('APPROVED')));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "ab - Get Activities Review Queue (status filter)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/activities?status=PENDING_REVIEW"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const json = pm.response.json();",
-                  "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('all returned are PENDING_REVIEW', () => json.forEach(a => pm.expect(a.status).to.eql('PENDING_REVIEW')));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "ab - Get Parent Children",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/parents/{{parentId}}/children"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "ab - Get Child Overview",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/parents/{{parentId}}/children/{{studentId}}/overview"
           },
           "event": [
             {
@@ -736,11 +625,11 @@
           ]
         },
         {
-          "name": "ab - Get Child Learning Profile",
+          "name": "ab - Verify Teacher-Owned Activity APPROVED",
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/parents/{{parentId}}/children/{{studentId}}/learning-profile"
+            "url": "{{baseUrl}}/activities"
           },
           "event": [
             {
@@ -749,80 +638,8 @@
                 "exec": [
                   "const json = pm.response.json();",
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('learning profile combines skills + learning style + missions', () => { pm.expect(json).to.have.property('skills'); pm.expect(json).to.have.property('weakSkills'); pm.expect(json).to.have.property('completedMissionSessionsCount'); });",
-                  "pm.test('no correct answers leak', () => pm.expect(JSON.stringify(json)).to.not.contain('correctAnswer'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "ab - AI Classroom Summary",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": "{{baseUrl}}/ai/classrooms/{{classroomId}}/summary"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "ab - AI Child Summary (parent)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": "{{baseUrl}}/ai/parents/{{parentId}}/children/{{studentId}}/summary"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "ab - AI Family Dashboard Insight",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": "{{baseUrl}}/ai/parents/{{parentId}}/dashboard-insight"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "ab - Parent Dashboard",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/parents/{{parentId}}/dashboard"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                  "const a = Array.isArray(json) ? json.filter(x => x.title === 'Teacher Owned Seed Activity').pop() : null;",
+                  "pm.test('activity is APPROVED after review', () => pm.expect(a && a.status).to.eql('APPROVED'));"
                 ]
               }
             }
@@ -831,7 +648,7 @@
       ]
     },
     {
-      "name": "03 - Student 2 - AI Activity Generation",
+      "name": "02 - Student 2 - AI Activity Generation",
       "item": [
         {
           "name": "am - Generate Activity (EN)",
@@ -952,11 +769,51 @@
               }
             }
           ]
+        },
+        {
+          "name": "am - Generic Questions List Is Student-Safe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/questions"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('generic question DTO hides correctAnswer', () => json.forEach(q => pm.expect(q).to.not.have.property('correctAnswer')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "am - Generic Options List Is Student-Safe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/options"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('generic option DTO hides isCorrect', () => json.forEach(o => pm.expect(o).to.not.have.property('isCorrect')));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "04 - Student 2 - Approval & Review Flow",
+      "name": "03 - Student 2 - Approval & Review Flow",
       "item": [
         {
           "name": "am - Assign before approval (expect 400)",
@@ -1069,7 +926,8 @@
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
                   "pm.test('status is APPROVED', () => pm.expect(json.status).to.eql('APPROVED'));",
                   "pm.test('still has questions and options', () => pm.expect(json.questions[0].options).to.be.an('array').that.is.not.empty);",
-                  "pm.test('teacher view still exposes correctAnswer', () => pm.expect(json.questions[0]).to.have.property('correctAnswer'));"
+                  "pm.test('teacher view still exposes correctAnswer', () => pm.expect(json.questions[0]).to.have.property('correctAnswer'));",
+                  "pm.test('teacher activity details STILL expose correctAnswer/isCorrect', () => { const j = pm.response.json(); pm.expect(j.questions[0]).to.have.property('correctAnswer'); pm.expect(j.questions[0].options[0]).to.have.property('isCorrect'); });"
                 ]
               }
             }
@@ -1078,7 +936,7 @@
       ]
     },
     {
-      "name": "05 - Student 2 - Revision & Reject Flow",
+      "name": "04 - Student 2 - Revision & Reject Flow",
       "item": [
         {
           "name": "am - Generate Second Activity (revisionActivityId)",
@@ -1237,7 +1095,7 @@
       ]
     },
     {
-      "name": "06 - Student 2 - Assignment Flow",
+      "name": "05 - Student 2 - Assignment Flow",
       "item": [
         {
           "name": "am - Assign Approved Activity to Student",
@@ -1366,7 +1224,7 @@
       ]
     },
     {
-      "name": "07 - Student 2 - Submission Flow",
+      "name": "06 - Student 2 - Submission Flow",
       "item": [
         {
           "name": "am - Start Assignment",
@@ -1547,7 +1405,7 @@
       ]
     },
     {
-      "name": "08 - Student 2 - AI Evaluation & Feedback",
+      "name": "07 - Student 2 - AI Evaluation & Feedback",
       "item": [
         {
           "name": "am - Evaluate Submission (EN) [manual re-grade - NOT required in normal flow]",
@@ -1656,7 +1514,7 @@
       ]
     },
     {
-      "name": "09 - Student 2 - Teacher Feedback Return Reopen",
+      "name": "08 - Student 2 - Teacher Feedback Return Reopen",
       "item": [
         {
           "name": "am - Add Teacher Feedback (no status change)",
@@ -1820,10 +1678,10 @@
       ]
     },
     {
-      "name": "10 - Student 2 - Activity Enhancements",
+      "name": "09 - Student 2 - Activity Enhancements",
       "item": [
         {
-          "name": "am - Create Approved Short-Answer Activity",
+          "name": "am - Create Short-Answer Activity (PENDING_REVIEW)",
           "request": {
             "method": "POST",
             "header": [
@@ -1834,7 +1692,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"title\":\"S2 Short Answer Activity\",\"description\":\"A short-answer activity for AI-assisted grading.\",\"type\":\"QUIZ\",\"status\":\"APPROVED\",\"difficulty\":\"EASY\",\"maxScore\":10}"
+              "raw": "{\"title\":\"S2 Short Answer Activity\",\"description\":\"A short-answer activity for AI-assisted grading.\",\"type\":\"QUIZ\",\"status\":\"PENDING_REVIEW\",\"difficulty\":\"EASY\",\"maxScore\":10,\"skillId\":{{skillId}}}"
             },
             "url": "{{baseUrl}}/activities"
           },
@@ -1865,7 +1723,36 @@
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
                   "const a = Array.isArray(json) ? json.filter(x => x.title === 'S2 Short Answer Activity').pop() : null;",
                   "pm.test('activity created', () => pm.expect(a, 'S2 activity').to.not.be.null);",
+                  "// Guard (Issue 3): manual create is PENDING_REVIEW, never APPROVED directly.",
+                  "pm.test('manual create is PENDING_REVIEW (not APPROVED)', () => pm.expect(a.status).to.eql('PENDING_REVIEW'));",
                   "if (a) pm.collectionVariables.set('s2ActivityId', a.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "am - Approve Short-Answer Activity (review flow)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/activities/{{s2ActivityId}}/approve",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"teacherId\":{{teacherId}},\"reviewComment\":\"Approved for assignment\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
                 ]
               }
             }
@@ -2030,6 +1917,26 @@
           ]
         },
         {
+          "name": "am - Capture Points Before Submit",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/students/{{studentId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('s2PointsPreSubmit', json.totalPoints || 0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "am - Submit (AI-assisted grading or fallback)",
           "request": {
             "method": "POST",
@@ -2094,6 +2001,47 @@
                   "const json = pm.response.json();",
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
                   "pm.test('submission re-scored from the manual grade', () => { pm.expect(json.status).to.eql('GRADED'); pm.expect(json.score).to.eql(7); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "am - Verify Total Points After Manual Grade",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/students/{{studentId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('totalPoints rose by the final score (7) via delta accounting (no double-count)', () => pm.expect(json.totalPoints).to.eql(Number(pm.collectionVariables.get('s2PointsPreSubmit')) + 7));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "am - Verify Student Skills No Duplicates + Activity Skill",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/students/{{studentId}}/skills"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('no duplicate StudentSkill rows per skill id', () => { const ids = json.map(s => s.skillId); pm.expect(new Set(ids).size).to.eql(ids.length); });",
+                  "pm.test('the activity real skill was updated (not the first PROBLEM_SOLVING fallback)', () => pm.expect(json.some(s => s.skillId === Number(pm.collectionVariables.get('skillId')))).to.eql(true));"
                 ]
               }
             }
@@ -2248,6 +2196,53 @@
                   "const json = pm.response.json();",
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
                   "pm.test('student got an ACTIVITY_RETURNED notification', () => pm.expect(json.some(n => n.type === 'ACTIVITY_RETURNED')).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "am - Manual Grade RETURNED Fails (expect 400)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"teacherId\":{{teacherId}},\"earnedPoints\":5,\"status\":\"PARTIAL\",\"feedback\":\"should be rejected\"}"
+            },
+            "url": "{{baseUrl}}/student-answers/{{s2AnswerId}}/grade"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('manual grading a RETURNED submission is rejected (400)', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "am - Verify Total Points After Return",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/students/{{studentId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returning the submission removed its counted points (back to pre-submit)', () => pm.expect(json.totalPoints).to.eql(Number(pm.collectionVariables.get('s2PointsPreSubmit'))));"
                 ]
               }
             }
@@ -2468,7 +2463,7 @@
       ]
     },
     {
-      "name": "11 - Student 3 - Mission Flow",
+      "name": "10 - Student 3 - Mission Flow",
       "item": [
         {
           "name": "ah - Create Default Mission 1",
@@ -2601,7 +2596,8 @@
                   "if (m1) pm.collectionVariables.set('mission1Id', m1);",
                   "if (m2) pm.collectionVariables.set('mission2Id', m2);",
                   "if (m3) pm.collectionVariables.set('mission3Id', m3);",
-                  "if (m4) pm.collectionVariables.set('mission4Id', m4);"
+                  "if (m4) pm.collectionVariables.set('mission4Id', m4);",
+                  "pm.test('generic mission choices hide scoreImpact', () => (json||[]).forEach(m => (m.choices||[]).forEach(c => pm.expect(c).to.not.have.property('scoreImpact'))));"
                 ]
               }
             }
@@ -2736,7 +2732,8 @@
                 "exec": [
                   "const json = pm.response.json();",
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('steps come back ordered with choices', () => { pm.expect(json.steps).to.have.lengthOf(2); pm.expect(json.steps[0].choices.length).to.be.above(0); });"
+                  "pm.test('steps come back ordered with choices', () => { pm.expect(json.steps).to.have.lengthOf(2); pm.expect(json.steps[0].choices.length).to.be.above(0); });",
+                  "pm.test('admin steps endpoint STILL exposes scoreImpact', () => { const j = pm.response.json(); pm.expect(j.steps[0].choices[0]).to.have.property('scoreImpact'); });"
                 ]
               }
             }
@@ -2785,6 +2782,25 @@
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
                   "pm.test('returns a list (default missions only)', () => pm.expect(json).to.be.an('array'));",
                   "pm.test('no AI_GENERATED missions leak here', () => json.forEach(m => pm.expect(m.source).to.not.eql('AI_GENERATED')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ah - Legacy Generate Blocked Before Unlock (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/mission/generate/{{studentId}}/{{careerWorldId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('legacy generate is locked before 4 default completions', () => pm.response.to.have.status(400));",
+                  "pm.test('error message mentions locked', () => pm.expect((pm.response.json().message || '').toLowerCase()).to.include('locked'));"
                 ]
               }
             }
@@ -3261,6 +3277,27 @@
           ]
         },
         {
+          "name": "ah - Legacy Generate At Cap (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/mission/generate/{{studentId}}/{{careerWorldId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// After unlock the student already holds 2 active generated missions (the cap), so the legacy",
+                  "// endpoint must refuse — proving it shares the MAX_ACTIVE_GENERATED rule with the official flow.",
+                  "pm.test('legacy generate refused at active cap', () => pm.response.to.have.status(400));",
+                  "pm.test('error message mentions personalized cap', () => pm.expect((pm.response.json().message || '').toLowerCase()).to.include('active personalized'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "ah - Get Steps - Generated Mission",
           "request": {
             "method": "GET",
@@ -3529,6 +3566,303 @@
               }
             }
           ]
+        },
+        {
+          "name": "ah - Verify Student Mission Counters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/students/{{studentId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('completedMissionsCount incremented by mission completions', () => pm.expect(json.completedMissionsCount).to.be.above(0));",
+                  "pm.test('totalPoints increased by mission completions', () => pm.expect(json.totalPoints).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "11 - Student 1 - Teacher Parent Classroom & Dashboard",
+      "item": [
+        {
+          "name": "ab - Get Teacher Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/teachers/{{teacherId}}/dashboard"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('dashboard integrates activity + mission summaries', () => { pm.expect(json).to.have.property('classroomCount'); pm.expect(json).to.have.property('activitySummary'); pm.expect(json).to.have.property('missionSummary'); });",
+                  "pm.test('teacher dashboard shows completed mission sessions after Student 3 flow', () => { const j = pm.response.json(); pm.expect(j.missionSummary.completedMissionSessionsCount).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ab - Teacher AI Dashboard Insight",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/ai/teachers/{{teacherId}}/dashboard-insight"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('insight has summary + source (openai or fallback)', () => { pm.expect(json.summary).to.be.a('string').and.not.empty; pm.expect(json.source).to.be.oneOf(['openai','fallback']); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ab - Get Teacher Classrooms",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/teachers/{{teacherId}}/classrooms"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ab - Get Teacher Students",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/teachers/{{teacherId}}/students"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ab - Get Teacher Activities (all)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/teachers/{{teacherId}}/activities"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('teacher owns at least the seeded activity', () => pm.expect(json).to.be.an('array').that.is.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ab - Get Teacher Activities (APPROVED filter)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/teachers/{{teacherId}}/activities?status=APPROVED"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('all returned are APPROVED', () => json.forEach(a => pm.expect(a.status).to.eql('APPROVED')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ab - Get Activities Review Queue (status filter)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/activities?status=PENDING_REVIEW"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('all returned are PENDING_REVIEW', () => json.forEach(a => pm.expect(a.status).to.eql('PENDING_REVIEW')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ab - Get Parent Children",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/parents/{{parentId}}/children"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ab - Get Child Overview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/parents/{{parentId}}/children/{{studentId}}/overview"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ab - Get Child Learning Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/parents/{{parentId}}/children/{{studentId}}/learning-profile"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('learning profile combines skills + learning style + missions', () => { pm.expect(json).to.have.property('skills'); pm.expect(json).to.have.property('weakSkills'); pm.expect(json).to.have.property('completedMissionSessionsCount'); });",
+                  "pm.test('no correct answers leak', () => pm.expect(JSON.stringify(json)).to.not.contain('correctAnswer'));",
+                  "pm.test('learning profile reflects completed missions', () => { const j = pm.response.json(); pm.expect(j.completedMissionSessionsCount).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ab - AI Classroom Summary",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/ai/classrooms/{{classroomId}}/summary"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ab - AI Child Summary (parent)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/ai/parents/{{parentId}}/children/{{studentId}}/summary"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ab - AI Family Dashboard Insight",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/ai/parents/{{parentId}}/dashboard-insight"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ab - Parent Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/parents/{{parentId}}/dashboard"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('a child shows mission progress (completedMissionsCount + totalPoints > 0)', () => { const j = pm.response.json(); pm.expect(j.children.some(c => c.completedMissionsCount > 0)).to.eql(true); pm.expect(j.children.some(c => c.totalPoints > 0)).to.eql(true); });"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -3618,6 +3952,158 @@
               "script": {
                 "exec": [
                   "pm.test('invalid language fails with 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ah - Blocked: Generic Create StudentAnswer (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/student-answers",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"answerText\":\"bypass attempt\",\"status\":\"SAVED\",\"questionId\":1,\"studentId\":1,\"activitySubmissionId\":1}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('blocked with 400', () => pm.response.to.have.status(400));",
+                  "pm.test('message points to official flow', () => pm.expect((pm.response.json().message || '').toLowerCase()).to.include('disabled'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ah - Blocked: Generic Delete StudentAnswer (expect 400)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/student-answers/1"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('blocked with 400', () => pm.response.to.have.status(400));",
+                  "pm.test('message points to official flow', () => pm.expect((pm.response.json().message || '').toLowerCase()).to.include('disabled'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ah - Blocked: Generic Create MissionSession (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/mission-sessions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"startTime\":\"2026-01-01T00:00:00\",\"status\":\"STARTED\",\"missionId\":1}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('blocked with 400', () => pm.response.to.have.status(400));",
+                  "pm.test('message points to official flow', () => pm.expect((pm.response.json().message || '').toLowerCase()).to.include('disabled'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ah - Blocked: Generic Create Decision (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/decisions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"choice\":\"A\",\"missionSessionId\":1}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('blocked with 400', () => pm.response.to.have.status(400));",
+                  "pm.test('message points to official flow', () => pm.expect((pm.response.json().message || '').toLowerCase()).to.include('disabled'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "am - Create Activity With status=APPROVED (guard test)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/activities",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"Guard Status Check {{runSuffix}}\",\"type\":\"QUIZ\",\"status\":\"APPROVED\",\"difficulty\":\"EASY\",\"maxScore\":5,\"teacherId\":{{teacherId}},\"skillId\":{{skillId}}}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200 or 201', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "am - Verify Activity Not APPROVED (status guarded)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/activities"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const title = 'Guard Status Check ' + pm.collectionVariables.get('runSuffix');",
+                  "const a = Array.isArray(json) ? json.filter(x => x.title === title).pop() : null;",
+                  "pm.test('client-supplied APPROVED was ignored -> PENDING_REVIEW', () => pm.expect(a && a.status).to.eql('PENDING_REVIEW'));"
                 ]
               }
             }

@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+
 @Repository
 public interface ClassroomRepository extends JpaRepository<Classroom, Integer> {
 
@@ -13,4 +14,6 @@ public interface ClassroomRepository extends JpaRepository<Classroom, Integer> {
 
     // Classrooms owned by a teacher (Student 1 teacher dashboard / listing).
     List<Classroom> findClassroomsByTeacherId(Integer teacherId);
+
+    int countByTeacherId(Integer teacherId);
 }

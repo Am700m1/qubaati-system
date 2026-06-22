@@ -63,7 +63,7 @@ public class PaymentService {
         } else if (dto != null) {
             security.assertParent(user);
         }
-        return checkout(dto);
+        return checkout(user);
     }
 
     /**
@@ -74,13 +74,12 @@ public class PaymentService {
      * that the callback can read it back from Moyasar without relying on query params.
      */
     @Transactional
-    public CheckoutOutDTO checkout() {
+    public CheckoutOutDTO checkout(User currentUser) {
         moyasarService.requireConfigured();
         if (publishableKey == null || publishableKey.isBlank()) {
             throw new ApiException("Payment gateway publishable key is not configured. Please contact support.");
         }
 
-        User currentUser = security.getCurrentUser();
         Parent parent = null;
         Teacher teacher = null;
         PlanAudience audience;
@@ -252,10 +251,10 @@ public class PaymentService {
 
     // ── Status ───────────────────────────────────────────────────────────────
 
-    public PaymentStatusOutDTO getStatus(String localReference) {
+    public PaymentStatusOutDTO getStatus(User user, String localReference) {
         Payment payment = paymentRepository.findByLocalReference(localReference)
                 .orElseThrow(() -> new ApiException("Payment not found: " + localReference));
-        security.assertCurrentOwnsPaymentOrAdmin(payment);
+        security.assertUserOwnsPayment(user, payment);
         return new PaymentStatusOutDTO(
                 payment.getLocalReference(),
                 payment.getStatus(),
@@ -272,10 +271,10 @@ public class PaymentService {
      * Returns a receipt for a completed payment.
      * Only available when Payment status is PAID.
      */
-    public PaymentReceiptOutDTO getReceipt(String localReference) {
+    public PaymentReceiptOutDTO getReceipt(User user, String localReference) {
         Payment payment = paymentRepository.findByLocalReference(localReference)
                 .orElseThrow(() -> new ApiException("Payment not found: " + localReference));
-        security.assertCurrentOwnsPaymentOrAdmin(payment);
+        security.assertUserOwnsPayment(user, payment);
 
         if (payment.getStatus() != PaymentStatus.PAID) {
             throw new ApiException(

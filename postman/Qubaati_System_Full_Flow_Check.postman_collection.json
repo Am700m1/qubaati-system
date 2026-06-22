@@ -7886,6 +7886,125 @@
           ]
         },
         {
+          "name": "ab - Get Child Activity Results",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{parentUsername}}"
+                },
+                {
+                  "key": "password",
+                  "value": "{{parentPassword}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"studentId\": {{studentId}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/parents/me/children/activity-results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "parents",
+                "me",
+                "children",
+                "activity-results"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns an array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "pm.test('no correctAnswer leak', () => pm.expect(pm.response.text()).to.not.include('correctAnswer'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ab - Get Child Mission History",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{parentUsername}}"
+                },
+                {
+                  "key": "password",
+                  "value": "{{parentPassword}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"studentId\": {{studentId}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/parents/me/children/mission-history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "parents",
+                "me",
+                "children",
+                "mission-history"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('returns an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "ab - AI Classroom Summary",
           "request": {
             "method": "POST",

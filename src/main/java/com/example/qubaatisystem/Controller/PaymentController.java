@@ -18,12 +18,8 @@ public class PaymentController {
     @PostMapping("/checkout")
     public ResponseEntity<?> checkout(@AuthenticationPrincipal User user, @RequestBody CheckoutInDTO dto) {
         return ResponseEntity.ok(paymentService.checkout(user, dto));
-
     }
 
-    public ResponseEntity<?> checkout() {
-        return ResponseEntity.ok(paymentService.checkout());
-    }
     // Moyasar redirects here after payment; id is the Moyasar payment id.
     // localReference is read from metadata inside PaymentService — not from query params.
     @GetMapping("/callback")
@@ -33,12 +29,12 @@ public class PaymentController {
     }
 
     @GetMapping("/status")
-    public ResponseEntity<?> status(@RequestParam String ref) {
-        return ResponseEntity.ok(paymentService.getStatus(ref));
+    public ResponseEntity<?> status(@AuthenticationPrincipal User user, @RequestParam String ref) {
+        return ResponseEntity.ok(paymentService.getStatus(user, ref));
     }
 
     @GetMapping("/receipt")
-    public ResponseEntity<?> receipt(@RequestParam String ref) {
-        return ResponseEntity.ok(paymentService.getReceipt(ref));
+    public ResponseEntity<?> receipt(@AuthenticationPrincipal User user, @RequestParam String ref) {
+        return ResponseEntity.ok(paymentService.getReceipt(user, ref));
     }
 }

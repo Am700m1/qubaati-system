@@ -160,57 +160,27 @@ public class SecurityOwnershipService {
         }
     }
 
-    /** The authenticated user must own this Payment through their Parent or Teacher record (ADMIN bypasses). */
-    public void assertCurrentOwnsPaymentOrAdmin(Payment payment) {
+    /** The payment must belong to the authenticated user's Parent or Teacher record (ADMIN bypasses). */
+    public void assertUserOwnsPayment(User user, Payment payment) {
+        if (isAdmin(user)) {
+            return;
+        }
+        if (payment == null) {
+            throw new AccessDeniedException("That payment does not belong to you");
+        }
         if (payment.getParent() != null) {
-            assertCurrentParentOrAdmin(payment.getParent().getId());
-        } else if (payment.getTeacher() != null) {
-            assertCurrentTeacherOrAdmin(payment.getTeacher().getId());
-        } else {
-            throw new ApiException("Payment has no subscriber owner");
+            Parent parent = parentRepository.findParentByUserId(requireUser(user).getId());
+            if (parent != null && parent.getId().equals(payment.getParent().getId())) {
+                return;
+            }
         }
-    }
-
-    public void assertCurrentParentOrAdmin(Integer parentId) {
-        if (isAdmin()) {
-            return;
+        if (payment.getTeacher() != null) {
+            Teacher teacher = teacherRepository.findTeacherByUserId(requireUser(user).getId());
+            if (teacher != null && teacher.getId().equals(payment.getTeacher().getId())) {
+                return;
+            }
         }
-        Parent parent = parentRepository.findParentByUserId(getCurrentUser().getId());
-        if (parent == null || parentId == null || !parent.getId().equals(parentId)) {
-            throw new AccessDeniedException("You may only access your own parent data");
-        }
-    }
-
-    public void assertCurrentTeacherOrAdmin(Integer teacherId) {
-        if (isAdmin()) {
-            return;
-        }
-        Teacher teacher = teacherRepository.findTeacherByUserId(getCurrentUser().getId());
-        if (teacher == null || teacherId == null || !teacher.getId().equals(teacherId)) {
-            throw new AccessDeniedException("You may only access your own teacher data");
-        }
-    }
-
-    public void assertCurrentStudentOrAdmin(Integer studentId) {
-        if (isAdmin()) {
-            return;
-        }
-        Student student = studentRepository.findStudentByUserId(getCurrentUser().getId());
-        if (student == null || studentId == null || !student.getId().equals(studentId)) {
-            throw new AccessDeniedException("You may only access your own student data");
-        }
-    }
-
-    /** A parent may only act on a child that belongs to them (ADMIN bypasses). */
-    public void assertParentOwnsStudentOrAdmin(Integer parentId, Integer studentId) {
-        assertCurrentParentOrAdmin(parentId);
-        if (isAdmin()) {
-            return;
-        }
-        Student student = studentRepository.findStudentById(studentId);
-        if (student == null || student.getParent() == null || !student.getParent().getId().equals(parentId)) {
-            throw new AccessDeniedException("That child does not belong to this parent");
-        }
+        throw new AccessDeniedException("That payment does not belong to you");
     }
 
     /** The classroom must be owned by the current teacher (ADMIN bypasses). */

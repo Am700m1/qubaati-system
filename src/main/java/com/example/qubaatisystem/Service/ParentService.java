@@ -2,6 +2,7 @@ package com.example.qubaatisystem.Service;
 
 import com.example.qubaatisystem.Api.ApiException;
 import com.example.qubaatisystem.DTO.In.ChildCreateInDTO;
+import com.example.qubaatisystem.DTO.In.ChildTargetInDTO;
 import com.example.qubaatisystem.DTO.In.ChildUpdateProfileInDTO;
 import com.example.qubaatisystem.DTO.In.ParentInDTO;
 import com.example.qubaatisystem.DTO.In.StudentInDTO;
@@ -251,6 +252,18 @@ public class ParentService {
     }
 
     // ========== Child history (parent-safe read-only views) ==========
+
+    // Secure wrappers: the parent comes from Basic Auth and must own the target child (admin bypasses). studentId
+    // is a resource target in the body, never the acting profile.
+    public List<ActivitySubmissionOutDTO> getChildActivityResults(User user, ChildTargetInDTO dto) {
+        security.assertParentOwnsChild(user, dto.getStudentId());
+        return getChildActivityResults(dto.getStudentId());
+    }
+
+    public List<MissionSessionOutDTO> getChildMissionHistory(User user, ChildTargetInDTO dto) {
+        security.assertParentOwnsChild(user, dto.getStudentId());
+        return getChildMissionHistory(dto.getStudentId());
+    }
 
     public List<ActivitySubmissionOutDTO> getChildActivityResults(Integer studentId) {
         return activitySubmissionService.getStudentActivityResults(studentId);

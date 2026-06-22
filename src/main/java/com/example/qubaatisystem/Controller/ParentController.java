@@ -93,15 +93,15 @@ public class ParentController {
         return ResponseEntity.status(200).body(parentService.updateMyChildProfile(user, dto));
     }
 
-    @GetMapping("/me/children/{studentId}/activity-results")
-    public ResponseEntity<?> getMyChildActivityResults(@PathVariable Integer studentId) {
-        security.assertCurrentParentOwnsChildOrAdmin(studentId);
-        return ResponseEntity.status(200).body(parentService.getChildActivityResults(studentId));
+    @PostMapping("/me/children/activity-results")
+    public ResponseEntity<?> getMyChildActivityResults(@AuthenticationPrincipal User user,
+                                                       @Valid @RequestBody ChildTargetInDTO dto) {
+        return ResponseEntity.status(200).body(parentService.getChildActivityResults(user, dto));
     }
 
-    @GetMapping("/me/children/{studentId}/mission-history")
-    public ResponseEntity<?> getMyChildMissionHistory(@PathVariable Integer studentId) {
-        security.assertCurrentParentOwnsChildOrAdmin(studentId);
-        return ResponseEntity.status(200).body(parentService.getChildMissionHistory(studentId));
+    @PostMapping("/me/children/mission-history")
+    public ResponseEntity<?> getMyChildMissionHistory(@AuthenticationPrincipal User user,
+                                                      @Valid @RequestBody ChildTargetInDTO dto) {
+        return ResponseEntity.status(200).body(parentService.getChildMissionHistory(user, dto));
     }
 }

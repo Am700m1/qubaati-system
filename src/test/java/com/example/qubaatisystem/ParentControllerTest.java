@@ -4,7 +4,10 @@ import com.example.qubaatisystem.Api.ApiException;
 import com.example.qubaatisystem.Controller.ParentController;
 import com.example.qubaatisystem.DTO.In.ChildCreateInDTO;
 import com.example.qubaatisystem.DTO.In.ChildUpdateProfileInDTO;
+import com.example.qubaatisystem.DTO.Out.ActivitySubmissionOutDTO;
+import com.example.qubaatisystem.DTO.Out.MissionSessionOutDTO;
 import com.example.qubaatisystem.DTO.Out.StudentOutDTO;
+import com.example.qubaatisystem.Security.SecurityOwnershipService;
 import com.example.qubaatisystem.Service.ParentService;
 import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -18,6 +21,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -32,6 +36,7 @@ class ParentControllerTest {
     @Autowired ObjectMapper objectMapper;
 
     @MockitoBean ParentService parentService;
+    @MockitoBean SecurityOwnershipService security;
 
     @Test
     void createChild_returns200WithCreatedStudentDTO() throws Exception {
@@ -110,5 +115,33 @@ class ParentControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fullName").value("Updated Name"))
                 .andExpect(jsonPath("$.age").value(12));
+    }
+
+    @Test
+    void getMyChildActivityResults_callsOwnershipCheckAndReturnsResults() throws Exception {
+        ActivitySubmissionOutDTO sub = new ActivitySubmissionOutDTO();
+        sub.setId(10);
+        when(parentService.getChildActivityResults(5)).thenReturn(List.of(sub));
+
+        mockMvc.perform(get("/api/v1/parents/me/children/5/activity-results"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(10));
+
+        verify(security).assertCurrentParentOwnsChildOrAdmin(5);
+    }
+
+    @Test
+    void getMyChildMissionHistory_callsOwnershipCheckAndReturnsHistory() throws Exception {
+        MissionSessionOutDTO session = new MissionSessionOutDTO();
+        session.setId(20);
+        when(parentService.getChildMissionHistory(5)).thenReturn(List.of(session));
+
+        mockMvc.perform(get("/api/v1/parents/me/children/5/mission-history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(20));
+
+        verify(security).assertCurrentParentOwnsChildOrAdmin(5);
     }
 }

@@ -5,7 +5,9 @@ import com.example.qubaatisystem.DTO.In.ChildCreateInDTO;
 import com.example.qubaatisystem.DTO.In.ChildUpdateProfileInDTO;
 import com.example.qubaatisystem.DTO.In.ParentInDTO;
 import com.example.qubaatisystem.DTO.In.StudentInDTO;
+import com.example.qubaatisystem.DTO.Out.ActivitySubmissionOutDTO;
 import com.example.qubaatisystem.DTO.Out.ChildLearningProfileOutDTO;
+import com.example.qubaatisystem.DTO.Out.MissionSessionOutDTO;
 import com.example.qubaatisystem.DTO.Out.ParentDashboardOutDTO;
 import com.example.qubaatisystem.DTO.Out.ParentOutDTO;
 import com.example.qubaatisystem.DTO.Out.StudentOutDTO;
@@ -31,6 +33,8 @@ public class ParentService {
     private final UserRepository userRepository;
     private final StudentService studentService;
     private final ChildLearningProfileService childLearningProfileService;
+    private final ActivitySubmissionService activitySubmissionService;
+    private final MissionSessionService missionSessionService;
     private final ModelMapper modelMapper;
     private final PasswordEncoder passwordEncoder;
     private final com.example.qubaatisystem.Config.SecurityOwnershipService security;
@@ -244,6 +248,16 @@ public class ParentService {
         Integer parentId = security.getCurrentParentId(user);
         security.assertParentOwnsChild(user, dto.getStudentId());
         return updateChildProfile(parentId, dto.getStudentId(), dto);
+    }
+
+    // ========== Child history (parent-safe read-only views) ==========
+
+    public List<ActivitySubmissionOutDTO> getChildActivityResults(Integer studentId) {
+        return activitySubmissionService.getStudentActivityResults(studentId);
+    }
+
+    public List<MissionSessionOutDTO> getChildMissionHistory(Integer studentId) {
+        return missionSessionService.getMissionHistoryByStudentId(studentId);
     }
 
     // ---------- helpers ----------

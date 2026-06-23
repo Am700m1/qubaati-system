@@ -1,19 +1,19 @@
-# 🎓 Qubaati System | نظام قبعاتي
+# 🎓 Qubaati | قبعتي
 
 <p align="center">
   <b>AI-powered adaptive learning platform for children</b><br/>
   <b>منصة تعليمية ذكية وتفاعلية للأطفال مدعومة بالذكاء الاصطناعي</b>
 </p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Java-17-orange?style=for-the-badge&logo=openjdk" />
-  <img src="https://img.shields.io/badge/Spring%20Boot-4.x-brightgreen?style=for-the-badge&logo=springboot" />
-  <img src="https://img.shields.io/badge/MySQL-Database-blue?style=for-the-badge&logo=mysql" />
-  <img src="https://img.shields.io/badge/Spring%20Security-Basic%20Auth-green?style=for-the-badge&logo=springsecurity" />
-  <img src="https://img.shields.io/badge/Spring%20AI-OpenAI-purple?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Moyasar-Payments-lightgrey?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/n8n-Automation-orange?style=for-the-badge&logo=n8n" />
-</p>
+![Java](https://img.shields.io/badge/Java-Spring%20Boot-orange)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-Backend-green)
+![MariaDB](https://img.shields.io/badge/MariaDB-Database-blue)
+![OpenAI](https://img.shields.io/badge/OpenAI-AI-purple)
+![Moyasar](https://img.shields.io/badge/Moyasar-Payments-yellow)
+![Spring Security](https://img.shields.io/badge/Spring_Security-Secured-success)
+![n8n](https://img.shields.io/badge/n8n-Automation-orange)
+![Twilio](https://img.shields.io/badge/Twilio-WhatsApp%20Notifications-red)
+![Gmail](https://img.shields.io/badge/Gmail-Email%20Notifications-EA4335)
 
 ---
 
@@ -21,7 +21,7 @@
 
 ### العربية
 
-**نظام قبعاتي** هو منصة تعليمية ذكية وتفاعلية للأطفال، تساعد الطلاب على التعلم من خلال عوالم مهنية افتراضية مثل الطب، الهندسة، العلوم، التعليم وغيرها. يدخل الطالب إلى هذه العوالم وينفذ مهام وأنشطة تفاعلية وأسئلة تعليمية مبنية على القرارات.
+**قبعتي** هي منصة تعليمية ذكية وتفاعلية للأطفال، تساعد الطلاب على التعلم من خلال عوالم مهنية افتراضية مثل الطب، الهندسة، العلوم، التعليم وغيرها. يدخل الطالب إلى هذه العوالم وينفذ مهام وأنشطة تفاعلية وأسئلة تعليمية مبنية على القرارات.
 
 يقوم النظام بتحليل أداء الطالب وسلوكه التعليمي وسرعة اتخاذ القرار ونقاط القوة والضعف والمهارات ونمط التعلم. يستطيع المعلم إنشاء أنشطة باستخدام الذكاء الاصطناعي، تعديلها، اعتمادها، ثم تعيينها للطلاب أو الفصول. كما يستطيع ولي الأمر متابعة تقدم أبنائه من خلال لوحات تحكم وتقارير أسبوعية يتم إنشاؤها بمساعدة n8n والذكاء الاصطناعي.
 
@@ -30,7 +30,7 @@
 
 ### English
 
-**Qubaati System** is an AI-assisted educational platform designed for children, teachers, and parents. Students explore interactive career worlds such as medicine, engineering, science, teaching, and more. Inside each world, they complete missions, activities, questions, and decision-based learning experiences.
+**Qubaati** is an AI-assisted educational platform designed for children, teachers, and parents. Students explore interactive career worlds such as medicine, engineering, science, teaching, and more. Inside each world, they complete missions, activities, questions, and decision-based learning experiences.
 
 The system analyzes student performance, learning behavior, decision speed, strengths, weaknesses, skills, and learning style. Teachers can generate and refine AI-powered activities, assign them to students or classrooms, review progress, and provide feedback. Parents can monitor their children’s progress through dashboards and AI/n8n-generated weekly reports.
 

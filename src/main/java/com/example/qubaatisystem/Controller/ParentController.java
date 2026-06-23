@@ -7,6 +7,8 @@ import com.example.qubaatisystem.DTO.In.ParentInDTO;
 import com.example.qubaatisystem.Service.ParentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -79,6 +81,17 @@ public class ParentController {
     public ResponseEntity<?> getChildLearningProfile(@PathVariable Integer parentId,
                                                      @PathVariable Integer studentId) {
         return ResponseEntity.status(200).body(parentService.getChildLearningProfile(parentId, studentId));
+    }
+
+    @GetMapping("/{parentId}/children/{studentId}/learning-profile/pdf")
+    public ResponseEntity<byte[]> exportChildLearningProfilePdf(@PathVariable Integer parentId,
+                                                                @PathVariable Integer studentId) {
+        byte[] pdf = parentService.generateChildPortfolioPdf(parentId, studentId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"student-" + studentId + "-portfolio.pdf\"")
+                .body(pdf);
     }
 
     @PatchMapping("/{parentId}/children/{studentId}/profile")

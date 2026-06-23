@@ -7,10 +7,13 @@ import com.example.qubaatisystem.DTO.Out.TeacherDashboardClassroomOutDTO;
 import com.example.qubaatisystem.DTO.Out.TeacherDashboardStudentOutDTO;
 import com.example.qubaatisystem.Enum.ActivityStatus;
 import com.example.qubaatisystem.Service.ActivityService;
+import com.example.qubaatisystem.Service.StudentPortfolioPdfService;
 import com.example.qubaatisystem.Service.TeacherDashboardService;
 import com.example.qubaatisystem.Service.TeacherService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,6 +35,7 @@ public class TeacherController {
     private final TeacherService teacherService;
     private final TeacherDashboardService teacherDashboardService;
     private final ActivityService activityService;
+    private final StudentPortfolioPdfService studentPortfolioPdfService;
 
     @PostMapping
     public ResponseEntity<?> create(@Valid @RequestBody TeacherInDTO dto) {
@@ -82,5 +86,16 @@ public class TeacherController {
     @GetMapping("/{teacherId}/students")
     public ResponseEntity<List<TeacherDashboardStudentOutDTO>> getTeacherStudents(@PathVariable Integer teacherId) {
         return ResponseEntity.status(200).body(teacherDashboardService.getTeacherStudents(teacherId));
+    }
+
+    @GetMapping("/{teacherId}/students/{studentId}/learning-profile/pdf")
+    public ResponseEntity<byte[]> exportStudentLearningProfilePdf(@PathVariable Integer teacherId,
+                                                                  @PathVariable Integer studentId) {
+        byte[] pdf = studentPortfolioPdfService.generateTeacherStudentPortfolio(teacherId, studentId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"student-" + studentId + "-portfolio.pdf\"")
+                .body(pdf);
     }
 }

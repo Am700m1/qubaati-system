@@ -30,6 +30,7 @@ public class ParentService {
     private final UserRepository userRepository;
     private final StudentService studentService;
     private final ChildLearningProfileService childLearningProfileService;
+    private final StudentPortfolioPdfService studentPortfolioPdfService;
     private final ModelMapper modelMapper;
 
     public List<ParentOutDTO> getAll() {
@@ -182,6 +183,13 @@ public class ParentService {
             throw new ApiException("Parent with id " + parentId + " not found");
         }
         return childLearningProfileService.getLearningProfile(parentId, studentId);
+    }
+
+    public byte[] generateChildPortfolioPdf(Integer parentId, Integer studentId) {
+        if (parentRepository.findParentById(parentId) == null) {
+            throw new ApiException("Parent with id " + parentId + " not found");
+        }
+        return studentPortfolioPdfService.generateChildPortfolio(parentId, studentId);
     }
 
     // ---------- helpers ----------

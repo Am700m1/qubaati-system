@@ -138,9 +138,8 @@ The goal of Qubaati is to move beyond traditional grades and provide a deeper, p
 | Tool                    | Purpose                       |
 | ----------------------- | ----------------------------- |
 | Postman                 | API testing collection        |
-| Postman lint scripts    | Route and actor-ID validation |
 | Git / GitHub            | Version control               |
-| IntelliJ IDEA / VS Code | Development environment       |
+| IntelliJ IDEA           | Development environment       |
 | Mermaid                 | README diagrams               |
 
 ---
@@ -413,88 +412,6 @@ This section lists the important business endpoints that are not simple CRUD.
 | `GET`  | `/api/v1/subscriptions/plans`              | Public        | List subscription plans     |
 | `GET`  | `/api/v1/subscriptions/parents/me/status`  | Parent        | Parent subscription status  |
 | `GET`  | `/api/v1/subscriptions/teachers/me/status` | Teacher       | Teacher subscription status |
-
----
-
-## 📁 Suggested Project Structure
-
-```text
-src/main/java/com/example/qubaatisystem
-│
-├── Api
-│   ├── ApiException.java
-│   ├── ApiResponse.java
-│   └── ControllerAdvice.java
-│
-├── Config
-│   ├── SecurityConfig.java
-│   ├── CustomUserDetailsService.java
-│   ├── SecurityOwnershipService.java
-│   ├── AdminSeeder.java
-│   ├── PlanSeeder.java
-│   └── BeanConfig.java
-│
-├── Controller
-│   ├── ActivityController.java
-│   ├── ActivityAssignmentController.java
-│   ├── ActivitySubmissionController.java
-│   ├── AiController.java
-│   ├── ClassroomController.java
-│   ├── MissionController.java
-│   ├── MissionFlowController.java
-│   ├── ParentController.java
-│   ├── StudentController.java
-│   ├── TeacherController.java
-│   └── ...
-│
-├── DTO
-│   ├── In
-│   └── Out
-│
-├── Model
-│
-├── Repository
-│
-├── Service
-│
-└── Enum
-```
-
----
-
-## ⚙️ Environment Variables
-
-Create environment variables or configure `application.properties`.
-
-```properties
-# Database
-spring.datasource.url=${DB_URL:jdbc:mysql://localhost:3306/qubaati}
-spring.datasource.username=${DB_USERNAME:root}
-spring.datasource.password=${DB_PASSWORD:}
-
-# OpenAI / Spring AI
-spring.ai.openai.api-key=${OPENAI_API_KEY:}
-spring.ai.openai.chat.options.model=${OPENAI_MODEL:gpt-5.4-mini}
-
-# Admin seeder
-app.admin.username=${APP_ADMIN_USERNAME:admin}
-app.admin.password=${APP_ADMIN_PASSWORD:Admin123!}
-app.admin.email=${APP_ADMIN_EMAIL:admin@qubaati.test}
-
-# Moyasar
-moyasar.secret-key=${MOYASAR_SECRET_KEY:}
-moyasar.publishable-key=${MOYASAR_PUBLISHABLE_KEY:}
-moyasar.api-base-url=${MOYASAR_API_BASE_URL:https://api.moyasar.com}
-app.base-url=${APP_BASE_URL:http://localhost:8080}
-
-# n8n
-n8n.parent-report-webhook-url=${N8N_PARENT_REPORT_WEBHOOK_URL:}
-n8n.basic-auth-username=${N8N_BASIC_AUTH_USERNAME:}
-n8n.basic-auth-password=${N8N_BASIC_AUTH_PASSWORD:}
-n8n.parent-weekly-report.enabled=${N8N_PARENT_WEEKLY_REPORT_ENABLED:true}
-n8n.parent-weekly-report.scheduler-enabled=${N8N_PARENT_WEEKLY_REPORT_SCHEDULER_ENABLED:false}
-n8n.parent-weekly-report.cron=${N8N_PARENT_WEEKLY_REPORT_CRON:0 0 8 * * MON}
-```
 
 ---
 

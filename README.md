@@ -1,5 +1,5 @@
 <h1 align="center">
-  # 🎓 Qubaati | قبعتي
+  🎓 Qubaati | قبعتي
 </h1>
 
 <p align="center">

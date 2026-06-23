@@ -1,4 +1,6 @@
-# 🎓 Qubaati | قبعتي
+<p align="center">
+  # 🎓 Qubaati | قبعتي
+</p>
 
 <p align="center">
   <b>AI-powered adaptive learning platform for children</b><br/>
@@ -412,6 +414,74 @@ This section lists the important business endpoints that are not simple CRUD.
 | `GET`  | `/api/v1/subscriptions/plans`              | Public        | List subscription plans     |
 | `GET`  | `/api/v1/subscriptions/parents/me/status`  | Parent        | Parent subscription status  |
 | `GET`  | `/api/v1/subscriptions/teachers/me/status` | Teacher       | Teacher subscription status |
+
+---
+
+# 👩‍💻 My Contribution
+
+| Module | Features |
+| --- | --- |
+| 🎯 Student Mission Flow | Available career worlds, available missions, mission session lifecycle, student decisions, mission completion, mission abandonment |
+| 🧠 AI Mission Insights | Mission insight generation, AI insight regeneration, student recommendations regeneration |
+| 🧩 Multi-step Mission Logic | Mission steps, choices, decision-based progression, generated mission regeneration |
+| 📊 Student Recommendations & Notifications | Student recommendations, recommendation status updates, unread notifications, mark one/all notifications as read |
+| 🧾 Student Portfolio PDF | Arabic PDF template, branded report layout, parent PDF export, teacher PDF export |
+| 💬 WhatsApp Notifications | WhatsApp service integration, welcome messages for parent/teacher accounts, parent notification when teacher assigns a new activity |
+| 🧪 Testing Support | Postman/flow testing support for mission flow, PDF export, and WhatsApp notification scenarios |
+
+---
+
+# 🔗 Git-Proven Endpoints I Implemented
+
+## 🎯 Student Mission Flow
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/api/v1/students/me/career-worlds/available` | Get available career worlds for the authenticated student. |
+| `GET` | `/api/v1/students/me/missions/available?careerWorldId={careerWorldId}` | Get available missions for a selected career world. |
+| `POST` | `/api/v1/career-worlds/missions` | Get default missions for a career world. |
+| `PATCH` | `/api/v1/students/me/missions/regenerate` | Regenerate an AI-generated mission for the authenticated student. |
+| `POST` | `/api/v1/missions/sessions/start` | Start a mission session. |
+| `POST` | `/api/v1/mission-sessions/current` | Get the current mission session step. |
+| `POST` | `/api/v1/mission-sessions/decisions` | Submit the student's decision for the current mission step. |
+| `PATCH` | `/api/v1/mission-sessions/complete` | Complete a mission session and trigger progress updates. |
+| `PATCH` | `/api/v1/mission-sessions/abandon` | Abandon an active mission session. |
+
+---
+
+## 🧠 Mission Insights & Recommendations
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `POST` | `/api/v1/mission-sessions/insight` | Get the generated insight for a completed mission session. |
+| `PATCH` | `/api/v1/mission-sessions/insight/regenerate` | Regenerate the AI insight for a completed mission session. |
+| `GET` | `/api/v1/students/me/recommendations` | Get recommendations for the authenticated student. |
+| `POST` | `/api/v1/students/me/recommendations/regenerate` | Regenerate recommendations for the authenticated student. |
+| `PATCH` | `/api/v1/recommendations/dismiss` | Dismiss a recommendation owned by the student. |
+| `PATCH` | `/api/v1/recommendations/complete` | Mark a recommendation as completed. |
+
+---
+
+## 🔔 Student Notifications
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/api/v1/users/me/notifications/unread` | Get unread notifications for the authenticated user. |
+| `PATCH` | `/api/v1/users/me/notifications/read` | Mark one notification as read. |
+| `PATCH` | `/api/v1/users/me/notifications/read-all` | Mark all notifications as read. |
+
+---
+
+## 🧾 Student Portfolio PDF
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `POST` | `/api/v1/parents/me/children/learning-profile/pdf` | Export a child's learning profile as a branded Arabic PDF for the authenticated parent. |
+| `POST` | `/api/v1/teachers/me/students/learning-profile/pdf` | Export a student's learning profile as a branded Arabic PDF for the authenticated teacher. |
+
+---
+
+> I also implemented the reusable WhatsApp service and Arabic student portfolio PDF templates used by the parent and teacher flows.
 
 ---
 

@@ -1,6 +1,6 @@
-<p align="center">
+<h1 align="center">
   # 🎓 Qubaati | قبعتي
-</p>
+</h1>
 
 <p align="center">
   <b>AI-powered adaptive learning platform for children</b><br/>

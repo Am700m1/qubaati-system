@@ -20,8 +20,11 @@ public class LearningStyle {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    // Nullable: a new student's learning style starts UNKNOWN (primaryStyle = null) and is filled in later by the
+    // analytics services after activity/mission completion. LearningStyleType has no UNKNOWN member, so the column
+    // must allow null — otherwise the auto-initialized profile fails to insert and child creation breaks.
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private LearningStyleType primaryStyle;
 
     @Enumerated(EnumType.STRING)

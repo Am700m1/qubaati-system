@@ -183,7 +183,7 @@ class ParentServiceTest {
         existing.setParentId(1);
         when(studentService.getById(3)).thenReturn(existing);
 
-        ChildUpdateProfileInDTO dto = new ChildUpdateProfileInDTO("New Name", 12, "Grade 6");
+        ChildUpdateProfileInDTO dto = new ChildUpdateProfileInDTO(3, "New Name", 12, "Grade 6");
 
         StudentOutDTO updated = new StudentOutDTO();
         updated.setFullName("New Name");

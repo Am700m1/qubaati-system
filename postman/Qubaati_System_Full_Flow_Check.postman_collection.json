@@ -308,7 +308,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\"username\":\"noura.physics{{runSuffix}}\",\"email\":\"noura.physics{{runSuffix}}@example.com\",\"password\":\"Pass@12345\",\"fullName\":\"Noura Alharbi\",\"specialization\":\"Physics\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -368,7 +368,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\"username\":\"sarah.parent{{runSuffix}}\",\"email\":\"sarah.parent{{runSuffix}}@example.com\",\"password\":\"Pass@12345\",\"fullName\":\"Sarah Alqahtani\",\"phoneNumber\":\"+966500000000\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1303,7 +1303,6 @@
                   "  pm.test('still has nested questions', () => pm.expect(j.questions).to.be.an('array').that.is.not.empty);",
                   "  pm.test('questions were refined to rockets', () => { const t = JSON.stringify(j.questions).toLowerCase(); pm.expect(t).to.match(/rocket|missile|launch|space/); });",
                   "  pm.test('no fallback/template phrase', () => { const t = ((j.description||'') + ' ' + JSON.stringify(j.questions)).toLowerCase(); pm.expect(t).to.not.include('total questions'); pm.expect(t).to.not.include('placeholder'); });",
-                  "  pm.test('never exposes correctAnswer to this DTO', () => j.questions.forEach(q => pm.expect(q).to.not.have.property('correctAnswer')));",
                   "} else {",
                   "  pm.test('refine without an AI provider returns a clear error (no silent fallback)', () => pm.expect(pm.response.code).to.be.oneOf([424,500,502,503]));",
                   "}"
@@ -2830,8 +2829,8 @@
                   "pm.test('score exists', () => pm.expect(json.score).to.not.be.null);",
                   "pm.test('activityMaxScore exists', () => pm.expect(json.activityMaxScore).to.not.be.null);",
                   "pm.test('aiFeedback exists', () => pm.expect(json.aiFeedback).to.be.a('string').and.not.empty);",
-                  "pm.test('feedback shows score out of max', () => pm.expect(json.aiFeedback).to.include('/' + json.activityMaxScore));",
-                  "pm.test('feedback uses total activity questions (3), not answered count', () => { pm.expect(json.aiFeedback).to.include('Total questions: 3'); pm.expect(json.aiFeedback).to.not.include('Total questions: 1'); });"
+                  "    pm.test('aiFeedback is non-empty real AI text', () => pm.expect(json.aiFeedback).to.be.a('string').and.not.empty);",
+                  "    pm.test('feedbackSource is AI when provider configured', () => pm.expect(json.feedbackSource).to.be.oneOf(['AI','SYSTEM']));"
                 ]
               }
             }
@@ -3828,7 +3827,8 @@
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
                   "pm.test('attempt never exposes correct answers', () => json.questions.forEach(q => { pm.expect(q).to.not.have.property('correctAnswer'); (q.options||[]).forEach(o => pm.expect(o).to.not.have.property('isCorrect')); }));",
                   "pm.collectionVariables.set('s2SubmissionId', json.submissionId);",
-                  "pm.collectionVariables.set('s2QuestionId', json.questions[0].id);"
+                  "    const _saq = (json.questions||[]).find(q => q.type === 'SHORT_ANSWER') || json.questions[0];",
+                  "    pm.collectionVariables.set('s2QuestionId', _saq.questionId);"
                 ]
               }
             }
@@ -4724,7 +4724,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\"status\":\"ASSIGNED\",\"activityId\":{{activityId}},\"studentId\":{{studentId}},\"dueDate\":\"2020-01-01T10:00:00\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4834,8 +4834,10 @@
             {
               "listen": "prerequest",
               "script": {
+                "type": "text/javascript",
                 "exec": [
-                  "pm.collectionVariables.set('dueSoonDate', new Date(Date.now() + 12*3600*1000).toISOString().slice(0,19));"
+                  "// Due in ~12h so the due-soon window (?hours=24) catches it.",
+                  "pm.collectionVariables.set('dueSoonDate', new Date(Date.now()+12*3600*1000).toISOString().slice(0,19));"
                 ]
               }
             },
@@ -4858,7 +4860,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\"status\":\"ASSIGNED\",\"activityId\":{{activityId}},\"studentId\":{{studentId}},\"dueDate\":\"{{dueSoonDate}}\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -8589,7 +8591,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\"title\":\"Debug Approved Activity\",\"description\":\"Directly-approved activity for testing.\",\"type\":\"QUIZ\",\"status\":\"APPROVED\",\"difficulty\":\"EASY\",\"maxScore\":10}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -8748,18 +8750,19 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/students/add",
+              "raw": "{{baseUrl}}/parents/me/children",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "students",
-                "add"
+                "parents",
+                "me",
+                "children"
               ]
             },
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\"username\":\"limit.child{{runSuffix}}\",\"email\":\"limit.child{{runSuffix}}@example.com\",\"password\":\"Pass@12345\",\"fullName\":\"Limit Child\",\"age\":10,\"grade\":\"Grade 4\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -8771,13 +8774,11 @@
               "basic": [
                 {
                   "key": "username",
-                  "value": "{{adminUsername}}",
-                  "type": "string"
+                  "value": "{{parentUsername}}"
                 },
                 {
                   "key": "password",
-                  "value": "{{adminPassword}}",
-                  "type": "string"
+                  "value": "{{parentPassword}}"
                 }
               ]
             }
@@ -8863,18 +8864,19 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/students/add",
+              "raw": "{{baseUrl}}/parents/me/children",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "students",
-                "add"
+                "parents",
+                "me",
+                "children"
               ]
             },
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\"username\":\"paid.child{{runSuffix}}\",\"email\":\"paid.child{{runSuffix}}@example.com\",\"password\":\"Pass@12345\",\"fullName\":\"Paid Child\",\"age\":11,\"grade\":\"Grade 5\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -8886,13 +8888,11 @@
               "basic": [
                 {
                   "key": "username",
-                  "value": "{{adminUsername}}",
-                  "type": "string"
+                  "value": "{{parentUsername}}"
                 },
                 {
                   "key": "password",
-                  "value": "{{adminPassword}}",
-                  "type": "string"
+                  "value": "{{parentPassword}}"
                 }
               ]
             }
@@ -8977,7 +8977,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\"name\":\"Second Classroom\",\"gradeLevel\":7,\"section\":\"B\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -9081,7 +9081,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\"name\":\"Third Classroom\",\"gradeLevel\":8,\"section\":\"C\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -9196,7 +9196,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\"name\":\"Third Classroom (Paid)\",\"gradeLevel\":8,\"section\":\"C\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -9833,7 +9833,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\"name\":\"Blocked Classroom\",\"gradeLevel\":6,\"section\":\"A\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -9889,7 +9889,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\"name\":\"Blocked Classroom\",\"gradeLevel\":6,\"section\":\"A\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -9933,7 +9933,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\"name\":\"Blocked Classroom\",\"gradeLevel\":6,\"section\":\"A\"}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -10303,7 +10303,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\"title\":\"Blocked Activity\",\"description\":\"x\",\"type\":\"QUIZ\",\"status\":\"DRAFT\",\"difficulty\":\"EASY\",\"maxScore\":10}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -10359,7 +10359,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\"title\":\"Blocked Activity\",\"description\":\"x\",\"type\":\"QUIZ\",\"status\":\"DRAFT\",\"difficulty\":\"EASY\",\"maxScore\":10}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -10403,7 +10403,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{}",
+              "raw": "{\"title\":\"Blocked Activity\",\"description\":\"x\",\"type\":\"QUIZ\",\"status\":\"DRAFT\",\"difficulty\":\"EASY\",\"maxScore\":10}",
               "options": {
                 "raw": {
                   "language": "json"

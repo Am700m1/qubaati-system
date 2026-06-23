@@ -34,7 +34,7 @@ class QuestionServiceTest {
     void create_doesNotAssignDtoActivityIdToQuestionId() {
         // activityId = 99 in the DTO must never end up as Question.id
         QuestionInDTO dto = new QuestionInDTO(
-                "What is 2 + 2?", QuestionType.MULTIPLE_CHOICE, 5,
+                null, "What is 2 + 2?", QuestionType.MULTIPLE_CHOICE, 5,
                 DifficultyLevel.EASY, "4", 99);
 
         Activity activity = new Activity();
@@ -64,7 +64,7 @@ class QuestionServiceTest {
         existing.setContent("Old content");
 
         QuestionInDTO dto = new QuestionInDTO(
-                "Updated content", QuestionType.TRUE_FALSE, 10,
+                null, "Updated content", QuestionType.TRUE_FALSE, 10,
                 DifficultyLevel.MEDIUM, "True", 99);
 
         Activity activity = new Activity();

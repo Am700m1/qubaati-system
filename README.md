@@ -159,6 +159,15 @@ The goal of Qubaati is to move beyond traditional grades and provide a deeper, p
 
 ---
 
+## 🧩 Class Diagram
+![img.png](img.png)
+
+---
+
+## 🎭 Use Case Diagram
+![img_3.png](img_3.png)
+
+---
 ## 🧠 AI Features
 
 Qubaati uses AI to make learning more personalized.
@@ -191,15 +200,203 @@ The system integrates with **Moyasar** for payments.
 | Plans | Parent/teacher subscription plans |
 | Limits | Free/paid limits for children and classrooms |
 
+Public payment endpoints:
+
+```http
+GET /api/v1/payments/callback
+GET /api/v1/subscriptions/plans
+
+```
+
+Authenticated payment endpoints:
+
+```http
+POST /api/v1/payments/checkout
+GET  /api/v1/payments/status
+GET  /api/v1/payments/receipt
+
+```
+
 ---
 
 ## 🔄 n8n Weekly Reports
 
 Qubaati integrates with **n8n** to generate parent weekly reports.
 
+Flow:
+
+```text
+Parent request
+    ↓
+Spring Boot backend
+    ↓
+n8n webhook
+    ↓
+Report generation
+    ↓
+Spring Boot saves report
+    ↓
+Parent views report
+
+```
+
+Main endpoints:
+
+```http
+POST /api/v1/parents/me/weekly-report/generate
+GET  /api/v1/parents/me/weekly-reports
+GET  /api/v1/parents/me/weekly-reports/latest
+POST /api/v1/parents/weekly-reports/generate-all
+
+```
+
 ---
 
-# 👨‍💻 My Contribution
+## 📡 Non-CRUD Endpoint Catalog
+
+This section lists the important business endpoints that are not simple CRUD.
+
+> Note: The project follows a body-based ID style. Resource IDs such as `studentId`, `activityId`, `assignmentId`, and `submissionId` are sent in the request body, not in the URL path.
+
+## 🔐 AI Endpoints
+
+| Method | Endpoint | Role | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/ai/health` | Authenticated | Check AI provider status |
+| `POST` | `/api/v1/ai/activities/generate` | Teacher/Admin | Generate an activity using AI |
+| `POST` | `/api/v1/ai/activities/refine` | Teacher/Admin | Refine full activity content using AI |
+| `POST` | `/api/v1/ai/activity-submissions/evaluate` | Teacher/Admin | AI-evaluate a submission |
+| `POST` | `/api/v1/ai/activity-submissions/generate-feedback` | Teacher/Admin | Generate AI feedback for submission |
+| `POST` | `/api/v1/ai/classrooms/summary` | Teacher/Admin | Generate classroom AI summary |
+| `POST` | `/api/v1/ai/parents/me/dashboard-insight` | Parent | Generate parent dashboard insight |
+| `POST` | `/api/v1/ai/parents/me/children/summary` | Parent | Generate AI child summary |
+| `POST` | `/api/v1/ai/teachers/me/dashboard-insight` | Teacher | Generate teacher dashboard insight |
+
+## 👨‍👩‍👧 Parent Endpoints
+
+| Method | Endpoint | Role | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/parents/me/children` | Parent | Create child account |
+| `GET` | `/api/v1/parents/me/children` | Parent | List own children |
+| `GET` | `/api/v1/parents/me/dashboard` | Parent | Parent dashboard |
+| `POST` | `/api/v1/parents/me/children/overview` | Parent | View child overview |
+| `POST` | `/api/v1/parents/me/children/learning-profile` | Parent | View child learning profile |
+| `POST` | `/api/v1/parents/me/children/activity-results` | Parent | View child activity results |
+| `POST` | `/api/v1/parents/me/children/mission-history` | Parent | View child mission history |
+| `POST` | `/api/v1/parents/me/weekly-report/generate` | Parent | Generate weekly report |
+| `GET` | `/api/v1/parents/me/weekly-reports` | Parent | List weekly reports |
+| `GET` | `/api/v1/parents/me/weekly-reports/latest` | Parent | Get latest weekly report |
+| `POST` | `/api/v1/parents/weekly-reports/generate-all` | Admin | Generate weekly reports for all parents |
+
+## 👨‍🏫 Teacher Endpoints
+
+| Method | Endpoint | Role | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/teachers/me/dashboard` | Teacher | Teacher dashboard |
+| `GET` | `/api/v1/teachers/me/classrooms` | Teacher | Teacher classrooms |
+| `GET` | `/api/v1/teachers/me/students` | Teacher | Teacher students |
+| `GET` | `/api/v1/teachers/me/activities` | Teacher | Teacher activities |
+
+## 🏫 Classroom Endpoints
+
+| Method | Endpoint | Role | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/classrooms/students/enroll` | Teacher/Admin | Enroll student into classroom |
+| `POST` | `/api/v1/classrooms/students/remove` | Teacher/Admin | Remove student from classroom |
+| `POST` | `/api/v1/classrooms/dashboard` | Teacher/Admin | Classroom dashboard |
+| `POST` | `/api/v1/classrooms/progress` | Teacher/Admin | Classroom progress |
+
+## 🧪 Activity Review and Assignment Endpoints
+
+| Method | Endpoint | Role | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/activities/approve` | Teacher/Admin | Approve activity |
+| `POST` | `/api/v1/activities/reject` | Teacher/Admin | Reject activity |
+| `POST` | `/api/v1/activities/request-revision` | Teacher/Admin | Request activity revision |
+| `POST` | `/api/v1/activity-assignments/assign-student` | Teacher/Admin | Assign activity to one student |
+| `POST` | `/api/v1/activity-assignments/assign-classroom` | Teacher/Admin | Assign activity to classroom |
+| `POST` | `/api/v1/activity-assignments/bulk` | Teacher/Admin | Bulk assign activity |
+| `POST` | `/api/v1/activity-assignments/by-activity` | Teacher/Admin | List assignments by activity |
+| `POST` | `/api/v1/activity-assignments/cancel` | Teacher/Admin | Cancel assignment |
+| `POST` | `/api/v1/activity-assignments/extend` | Teacher/Admin | Extend assignment due date |
+| `POST` | `/api/v1/activity-assignments/expire-overdue` | Teacher/Admin | Mark overdue assignments |
+| `POST` | `/api/v1/activity-assignments/due-soon` | Teacher/Admin | Send due-soon notifications |
+
+## 📝 Activity Submission Endpoints
+
+| Method | Endpoint | Role | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/activity-assignments/start` | Student/Admin | Start assignment |
+| `POST` | `/api/v1/activity-submissions/submit` | Student/Admin | Submit assignment |
+| `POST` | `/api/v1/activity-submissions/result` | Student/Admin | View submission result |
+| `POST` | `/api/v1/activity-submissions/current` | Student/Admin | View current submission |
+| `POST` | `/api/v1/activity-submissions/feedback` | Student/Admin | View submission feedback |
+| `POST` | `/api/v1/activity-submissions/by-activity` | Teacher/Admin | List submissions by activity |
+| `POST` | `/api/v1/activity-submissions/teacher-details` | Teacher/Admin | View teacher submission details |
+| `POST` | `/api/v1/activity-submissions/teacher-feedback` | Teacher/Admin | Add teacher feedback |
+| `POST` | `/api/v1/activity-submissions/return-to-student` | Teacher/Admin | Return submission to student |
+| `POST` | `/api/v1/activity-submissions/reopen` | Teacher/Admin | Reopen submission |
+| `POST` | `/api/v1/activity-submissions/pending-grading` | Teacher/Admin | List pending grading submissions |
+
+## ✍️ Student Answer Endpoints
+
+| Method | Endpoint | Role | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/student-answers/batch` | Student/Admin | Save batch answers |
+| `PATCH` | `/api/v1/student-answers/grade` | Teacher/Admin | Manually grade answer |
+
+## 👧 Student Self-Service Endpoints
+
+| Method | Endpoint | Role | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/students/me` | Student | Student profile |
+| `GET` | `/api/v1/students/me/activity-dashboard` | Student | Student activity dashboard |
+| `GET` | `/api/v1/students/me/career-worlds/available` | Student | Available career worlds |
+| `GET` | `/api/v1/students/me/missions/available` | Student | Available missions |
+| `GET` | `/api/v1/students/me/recommendations` | Student | Student recommendations |
+| `POST` | `/api/v1/students/me/recommendations/regenerate` | Student | Regenerate recommendations |
+| `GET` | `/api/v1/students/me/skills` | Student | Student skills |
+
+## 🎮 Mission Flow Endpoints
+
+| Method | Endpoint | Role | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/mission-sessions/start` | Student/Admin | Start mission session |
+| `POST` | `/api/v1/mission-sessions/decision` | Student/Admin | Submit mission decision |
+| `POST` | `/api/v1/mission-sessions/complete` | Student/Admin | Complete mission session |
+| `POST` | `/api/v1/mission-sessions/current` | Student/Admin | Get current mission session |
+| `POST` | `/api/v1/mission-sessions/insight/regenerate` | Student/Admin | Regenerate mission insight |
+| `POST` | `/api/v1/missions/steps/batch` | Admin | Add mission steps in batch |
+| `POST` | `/api/v1/missions/steps/get` | Admin | Get mission steps |
+| `DELETE` | `/api/v1/missions/steps/delete` | Admin | Delete mission steps |
+
+## 💡 Recommendation and Notification Endpoints
+
+| Method | Endpoint | Role | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/recommendations/accept` | Student/Admin | Accept recommendation |
+| `POST` | `/api/v1/recommendations/dismiss` | Student/Admin | Dismiss recommendation |
+| `POST` | `/api/v1/recommendations/complete` | Student/Admin | Complete recommendation |
+| `GET` | `/api/v1/users/me/notifications` | Authenticated | Get user notifications |
+| `GET` | `/api/v1/users/me/notifications/unread` | Authenticated | Get unread notifications |
+| `POST` | `/api/v1/users/me/notifications/read` | Authenticated | Mark notification as read |
+| `POST` | `/api/v1/users/me/notifications/read-all` | Authenticated | Mark all notifications as read |
+
+## 💳 Payment and Subscription Endpoints
+
+| Method | Endpoint | Role | Description |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/payments/checkout` | Authenticated | Start Moyasar checkout |
+| `GET` | `/api/v1/payments/callback` | Public | Moyasar payment callback |
+| `GET` | `/api/v1/payments/status` | Authenticated | Get payment status |
+| `GET` | `/api/v1/payments/receipt` | Authenticated | Get payment receipt |
+| `GET` | `/api/v1/subscriptions/plans` | Public | List subscription plans |
+| `GET` | `/api/v1/subscriptions/parents/me/status` | Parent | Parent subscription status |
+| `GET` | `/api/v1/subscriptions/teachers/me/status` | Teacher | Teacher subscription status |
+
+---
+
+# 👩‍💻 My Contribution
 
 | Module | Features |
 | --- | --- |
@@ -310,10 +507,24 @@ export OPENAI_API_KEY=your_openai_key
 
 ```
 
+On Windows:
+
+```bash
+mvnw.cmd clean compile
+
+```
+
 ### 5. Run the project
 
 ```bash
 ./mvnw spring-boot:run
+
+```
+
+On Windows:
+
+```bash
+mvnw.cmd spring-boot:run
 
 ```
 
